@@ -7,9 +7,10 @@ import (
 	"egreg10us/faultylauncher/util/logutil"
 )
 
-var UserOS string = runtime.GOOS
-var UserArch string = runtime.GOARCH
-var P string = string(os.PathSeparator) 
+const UserOS string = runtime.GOOS
+const UserArch string = runtime.GOARCH
+const P string = string(os.PathSeparator)
+
 var (
 	Gamedir string
 	Versionsdir string
