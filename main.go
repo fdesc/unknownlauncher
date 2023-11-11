@@ -26,6 +26,7 @@ func main() {
 	err = resourcemanager.AssetIndex(arl,aid)
 	if err != nil { logutil.Error(err.Error()) }
 	resourcemanager.Log4JConfig(&versionData)*/
-	resourcemanager.Libraries(&versionData)
+	//resourcemanager.Libraries(&versionData)
+	resourcemanager.Runtimes(&versionData)
 	// resourcemanager.Client(&versionData,version)
 }
