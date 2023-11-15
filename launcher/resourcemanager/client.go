@@ -1,18 +1,22 @@
 package resourcemanager
 
 import (
+	"path/filepath"
+	"os"
 
 	"github.com/tidwall/gjson"
-//	"egreg10us/faultylauncher/launcher/versionmanager"
 	"egreg10us/faultylauncher/util/logutil"
 	"egreg10us/faultylauncher/util/gamepath"
 	"egreg10us/faultylauncher/util/downloadutil"
 )
 
-func Client(versiondata *gjson.Result,ver string) (string,error) {
-	logutil.Info("Downloading client JAR for version "+ver)
+func Client(versiondata *gjson.Result,version string) {
+	logutil.Info("Downloading client JAR for version "+version)
 	jsonResult := versiondata.Get("downloads")
-	downloadutil.DownloadSingle(jsonResult.Get("client").Get("url").String(),gamepath.Versionsdir+gamepath.P+ver+gamepath.P+ver+".jar",false)
-	logutil.Info("Task client JAR finished for version "+ver)
-	return jsonResult.Get("client").Get("sha1").String(),nil
+	downloadutil.DownloadSingle(jsonResult.Get("client").Get("url").String(),filepath.Join(gamepath.Versionsdir,version,version+".jar"))
+	if ValidateChecksum(filepath.Join(gamepath.Versionsdir,version,version+".jar"),jsonResult.Get("client").Get("sha1").String()) == false {
+		os.Remove(filepath.Join(gamepath.Versionsdir,version,version+".jar"))
+		downloadutil.DownloadSingle(jsonResult.Get("client").Get("url").String(),filepath.Join(gamepath.Versionsdir,version,version+".jar"))
+	}
+	logutil.Info("Task client JAR finished for version "+version)
 }

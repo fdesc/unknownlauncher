@@ -13,7 +13,7 @@ import (
 )
 
 const resourcesUrl = "https://resources.download.minecraft.net/"
-var objectsDir string = gamepath.Assetsdir+gamepath.P+"objects"+gamepath.P
+var objectsDir string = filepath.Join(gamepath.Assetsdir,"objects")+gamepath.P
 var AssetID string
 
 func GetAssetProperties(versiondata *gjson.Result) (string,string) {
@@ -27,7 +27,7 @@ func ParseAssets(url string) (gjson.Result,error) {
 	return assetdata.Get("objects"),err
 }
 
-func Assets(assetsdata *gjson.Result,assetid string) error { // add asset downloading via assetid (legacy,pre-1.6) as separate function
+func Assets(assetsdata *gjson.Result,assetid string) { 
 	var hashSlice []string
 	var urlSlice []string
 	var pathSlice []string
@@ -49,23 +49,22 @@ func Assets(assetsdata *gjson.Result,assetid string) error { // add asset downlo
 		legacyAssets(pathSlice,fileNameSlice,assetid)
 	}
 	logutil.Info("Task downloading assets finished")
-	return nil
 }
 
 func legacyAssets(pathSlice []string,fileNameSlice []string,assetid string) error {
 	var targetDir string
 	if assetid == "legacy" {
-		targetDir = gamepath.Assetsdir+gamepath.P+"virtual"+gamepath.P+"legacy"
+		targetDir = filepath.Join(gamepath.Assetsdir,"virtual","legacy")
 	} else {
-		targetDir = gamepath.Gamedir+gamepath.P+"resources"
+		targetDir = filepath.Join(gamepath.Gamedir,"resources")
 	}
 	for i := range pathSlice {
 		file,err := os.Open(pathSlice[i])
 		if err != nil { logutil.Error(err.Error()); return err }
 		defer file.Close()
-		err = gamepath.Makedir(filepath.Dir(targetDir+gamepath.P+fileNameSlice[i]))
+		err = gamepath.Makedir(filepath.Dir(filepath.Join(targetDir,fileNameSlice[i])))
 		if err != nil { logutil.Error(err.Error()); return err }
-		destination,err := os.Create(targetDir+gamepath.P+fileNameSlice[i])
+		destination,err := os.Create(filepath.Join(targetDir,fileNameSlice[i]))
 		if err != nil { logutil.Error(err.Error()); return err }
 		defer destination.Close()
 		_,err = io.Copy(destination,file)
@@ -75,14 +74,14 @@ func legacyAssets(pathSlice []string,fileNameSlice []string,assetid string) erro
 }
 
 func AssetIndex(url string,assetid string) error {
-	return downloadutil.DownloadSingle(url,gamepath.Assetsdir+gamepath.P+"indexes"+gamepath.P+assetid+".json",false)
+	return downloadutil.DownloadSingle(url,filepath.Join(gamepath.Assetsdir,"indexes",assetid+".json"))
 }
 
 func Log4JConfig(versiondata *gjson.Result) string {
 	if versiondata.Get("logging").Exists() {
 		url := versiondata.Get("logging").Get("client").Get("file").Get("url").String()
 		id := versiondata.Get("logging").Get("client").Get("file").Get("id").String()
-		downloadutil.DownloadSingle(url,gamepath.Assetsdir+gamepath.P+"log_configs"+gamepath.P+id,false)
+		downloadutil.DownloadSingle(url,filepath.Join(gamepath.Assetsdir,"log_configs",id))
 		return id
 	} else {
 		return ""

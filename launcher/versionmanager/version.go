@@ -18,7 +18,7 @@ type GameVersion struct {
 
 func SelectVersion(v *GameVersion) (string,string,error) {
 	v.VersionUrl = ""
-	jsonBytes,err := downloadutil.GetJSON(metasrc); if err != nil { logutil.Error(err.Error()); return "","",err }
+	jsonBytes,err := downloadutil.GetData(metasrc); if err != nil { logutil.Error(err.Error()); return "","",err }
 	jsonResult := gjson.Get(string(jsonBytes),"versions")
 	jsonResult.ForEach(func(key, value gjson.Result) bool {
 		if (v.VersionType == value.Get("type").String()) {

@@ -49,7 +49,7 @@ func Warn(msg string) {
 
 func Error(msg string) {
 	Custom(&Loglevel{Header:"ERROR",Color: Red},msg)(msg)
-	os.Exit(1)
+	return
 }
 
 func Critical(msg string) {
@@ -65,7 +65,7 @@ func Custom(level *Loglevel,msg string) func(msg string) {
 		if level.Critical {
 			return func(string) {
 				stdoutPrinter(level.Color+level.Header+reset+": "+msg)
-				panic(msg)
+				os.Exit(1)
 			}
 		} else {
 			return func(string) {
@@ -76,7 +76,7 @@ func Custom(level *Loglevel,msg string) func(msg string) {
 		if level.Critical {
 			return func(string) {
 				stdoutPrinter(level.Header+": "+msg)
-				panic(msg)
+				os.Exit(1)
 			}
 		} else {
 			return func(string) {
