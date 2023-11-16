@@ -18,5 +18,12 @@ func Client(versiondata *gjson.Result,version string) {
 		os.Remove(filepath.Join(gamepath.Versionsdir,version,version+".jar"))
 		downloadutil.DownloadSingle(jsonResult.Get("client").Get("url").String(),filepath.Join(gamepath.Versionsdir,version,version+".jar"))
 	}
+	if jsonResult.Get("client_mappings").Exists() {
+		downloadutil.DownloadSingle(jsonResult.Get("client_mappings").Get("url").String(),filepath.Join(gamepath.Versionsdir,version,"client.txt"))
+		if ValidateChecksum(filepath.Join(gamepath.Versionsdir,version,"client.txt"),jsonResult.Get("client_mappings").Get("sha1").String()) == false {
+			os.Remove(filepath.Join(gamepath.Versionsdir,version,"client.txt"))
+			downloadutil.DownloadSingle(jsonResult.Get("client_mappings").Get("url").String(),filepath.Join(gamepath.Versionsdir,version,"client.txt"))
+		}
+	}
 	logutil.Info("Task client JAR finished for version "+version)
 }

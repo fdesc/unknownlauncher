@@ -25,5 +25,5 @@ func main() {
 	if err != nil { logutil.Error(err.Error()) }
 	resourcemanager.Assets(&assetsData,aid)
 	resourcemanager.Log4JConfig(&versionData)
-	resourcemanager.Libraries(&wantedversion.Version,&versionData)
+	resourcemanager.Libraries(wantedversion.Version,&versionData)
 }

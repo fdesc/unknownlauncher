@@ -29,7 +29,7 @@ func Runtimes(versiondata *gjson.Result) (error,string) {
 		jsonBytes,err := downloadutil.GetData(runtimesmeta)
 		if err != nil { logutil.Error(err.Error()); return err,"" }
 		if gamepath.UserOS == "linux" {
-			if gamepath.UserArch != "i386" {
+			if gamepath.UserArch != "386" {
 				manifestUrl = gjson.Get(string(jsonBytes),"linux").Get(requiredComponent+".0").Get("manifest").Get("url").String()
 			} else {
 				if gjson.Get(string(jsonBytes),"linux-i386").Get(requiredComponent+".0").Exists() {
@@ -51,7 +51,7 @@ func Runtimes(versiondata *gjson.Result) (error,string) {
 		} else if gamepath.UserOS == "windows" {
 			if gamepath.UserArch == "amd64" {
 				manifestUrl = gjson.Get(string(jsonBytes),"windows-x64").Get(requiredComponent+".0").Get("manifest").Get("url").String()
-			} else if gamepath.UserArch == "i386" {
+			} else if gamepath.UserArch == "386" {
 				manifestUrl = gjson.Get(string(jsonBytes),"windows-x86").Get(requiredComponent+".0").Get("manifest").Get("url").String()
 			} else {
 				if gjson.Get(string(jsonBytes),"windows-arm64").Get(requiredComponent+".0").Exists() {

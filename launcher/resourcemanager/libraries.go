@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"archive/zip"
 	"strconv"
+	"strings"
 	"time"
 	"os"
 	"io"
@@ -16,41 +17,64 @@ import (
 
 const librariesUrl = "https://libraries.minecraft.net"
 var (
+	identifier string
+	identifierArch string
+	identifierArchOld string
 	pathSlice []string
 	urlSlice []string
 	hashSlice []string
 )
 
+func getIdentifier() {
+	if gamepath.UserOS == "darwin" {
+		identifier = "osx"
+		if gamepath.UserArch == "arm64" {
+			identifierArch = "arm64"
+		}
+	} else if gamepath.UserOS == "windows" {
+		identifier = "windows"
+		if gamepath.UserArch == "amd64" {
+			identifierArch = "x64"
+			identifierArchOld = "64"
+		} else if gamepath.UserArch == "386" {
+			identifierArch = "x86"
+			identifierArchOld = "32"
+		} else if gamepath.UserArch == "arm64" {
+			identifierArch = "arm64"
+		}
+	} else if gamepath.UserOS == "linux" {
+		identifier = "linux"
+		if gamepath.UserArch == "arm64" {
+			identifierArch = "aarch_64"
+		} else if gamepath.UserArch == "amd64" {
+			identifierArch = "x86_64"
+		}
+	}
+}
+
 func libraryRules(versiondata *gjson.Result) {  
 	logutil.Info("Acquiring OS dependent library rules")
 	versiondata.Get("libraries").ForEach(func(_,value gjson.Result) bool {
 		if value.Get("rules.1").Exists() {
-			if gamepath.UserOS == "darwin" {
-				if value.Get("rules.1").Get("os").Get("name").String() == "osx" { 
+			if value.Get("rules.1").Get("os").Get("name").String() == identifier {
 					if value.Get("rules.1").Get("action").String() == "allow" {
 						if value.Get("downloads").Get("artifact").Exists() {
 							pathSlice = append(pathSlice, gamepath.Librariesdir+gamepath.P+value.Get("downloads").Get("artifact").Get("path").String())
 							hashSlice = append(hashSlice, value.Get("downloads").Get("artifact").Get("sha1").String())
 							urlSlice = append(urlSlice, librariesUrl+"/"+value.Get("downloads").Get("artifact").Get("path").String())
-						}	
-					} else {
-						if gamepath.UserOS == value.Get("rules.1").Get("os").Get("name").String() {
-							if value.Get("rules.1").Get("action").String() == "allow" {
-								if value.Get("downloads").Get("artifact").Exists() {
-									pathSlice = append(pathSlice, gamepath.Librariesdir+gamepath.P+value.Get("downloads").Get("artifact").Get("path").String())
-									hashSlice = append(hashSlice, value.Get("downloads").Get("artifact").Get("sha1").String())
-									urlSlice = append(urlSlice, librariesUrl+"/"+value.Get("downloads").Get("artifact").Get("path").String())
-								}
-							}
 						}
 					}
 				}
 			}
-			if value.Get("rules.0").Exists() {
-				if value.Get("rules.0").Get("action").String() == "allow" {
-					pathSlice = append(pathSlice, gamepath.Librariesdir+gamepath.P+value.Get("downloads").Get("artifact").Get("path").String())
-					hashSlice = append(hashSlice, value.Get("downloads").Get("artifact").Get("sha1").String())
-					urlSlice = append(urlSlice, librariesUrl+"/"+value.Get("downloads").Get("artifact").Get("path").String())
+		if value.Get("rules.0").Exists() {
+			if value.Get("rules.0").Get("action").String() == "allow" {
+				pkgName := strings.Split(value.Get("name").String(),":")
+				if (pkgName[len(pkgName)-1] != "natives-"+identifier && pkgName[len(pkgName)-1] != "natives-"+identifier+"-"+identifierArch && pkgName[len(pkgName)-1] != identifier+"-"+identifierArch) == false {
+					if value.Get("downloads").Get("artifact").Exists() {
+						pathSlice = append(pathSlice, gamepath.Librariesdir+gamepath.P+value.Get("downloads").Get("artifact").Get("path").String())
+						hashSlice = append(hashSlice, value.Get("downloads").Get("artifact").Get("sha1").String())
+						urlSlice = append(urlSlice, librariesUrl+"/"+value.Get("downloads").Get("artifact").Get("path").String())
+					}
 				}
 			}
 		}
@@ -75,18 +99,29 @@ func defaultLibraries(versiondata *gjson.Result) []string {
 
 func nativeLibraries(versiondata *gjson.Result) []string {
 	logutil.Info("Acquiring native libraries")
-	versiondata.Get("libraries").ForEach(func (_,value gjson.Result) bool{
+	versiondata.Get("libraries").ForEach(func (_,value gjson.Result) bool {
 		if value.Get("downloads").Get("classifiers").Exists() {
-			if gamepath.UserOS == "darwin" {
-				if value.Get("downloads").Get("classifiers").Get("natives-osx").Exists() {
-					pathSlice = append(pathSlice, gamepath.Librariesdir+gamepath.P+value.Get("downloads").Get("classifiers").Get("natives-osx").Get("path").String())
-					hashSlice = append(hashSlice, value.Get("downloads").Get("classifiers").Get("natives-osx").Get("sha1").String())
-					urlSlice = append(urlSlice, librariesUrl+"/"+value.Get("downloads").Get("classifiers").Get("natives-osx").Get("path").String())
+			if value.Get("downloads").Get("classifiers").Get("natives-"+identifier).Exists() {
+				if identifierArchOld != "" {
+					if value.Get("downloads").Get("classifiers").Get("natives-"+identifier+"-"+identifierArchOld).Exists() {
+						pathSlice = append(pathSlice, filepath.Join(gamepath.Librariesdir,value.Get("downloads").Get("classifiers").Get("natives-"+identifier+"-"+identifierArchOld).Get("path").String()))
+						hashSlice = append(hashSlice, value.Get("downloads").Get("classifiers").Get("natives-"+identifier+"-"+identifierArchOld).Get("sha1").String())
+						urlSlice = append(urlSlice, librariesUrl+"/"+value.Get("downloads").Get("classifiers").Get("natives-"+identifier+"-"+identifierArchOld).Get("path").String())
+					}
 				}
-			} else if value.Get("downloads").Get("classifiers").Get("natives-"+gamepath.UserOS).Exists() {
-				pathSlice = append(pathSlice, gamepath.Librariesdir+gamepath.P+value.Get("downloads").Get("classifiers").Get("natives-"+gamepath.UserOS).Get("path").String())
-				hashSlice = append(hashSlice, value.Get("downloads").Get("classifiers").Get("natives-"+gamepath.UserOS).Get("sha1").String())
-				urlSlice = append(urlSlice, librariesUrl+"/"+value.Get("downloads").Get("classifiers").Get("natives-"+gamepath.UserOS).Get("path").String())
+				pathSlice = append(pathSlice, filepath.Join(gamepath.Librariesdir,value.Get("downloads").Get("classifiers").Get("natives-"+identifier).Get("path").String()))
+				hashSlice = append(hashSlice, value.Get("downloads").Get("classifiers").Get("natives-"+identifier).Get("sha1").String())
+				urlSlice = append(urlSlice, librariesUrl+"/"+value.Get("downloads").Get("classifiers").Get("natives-"+identifier).Get("path").String())
+			}
+		}
+		if value.Get("rules.0").Exists() {
+			if (value.Get("rules.0").Get("action").String() == "allow" && value.Get("rules.0").Get("os").Get("name").String() == identifier) {
+				pkgName := strings.Split(value.Get("name").String(),":")
+				if (pkgName[len(pkgName)-1] == "natives-"+identifier || pkgName[len(pkgName)-1] == "natives-"+identifier+"-"+identifierArch || pkgName[len(pkgName)-1] == identifier+"-"+identifierArch) {
+					pathSlice = append(pathSlice, filepath.Join(gamepath.Librariesdir,value.Get("downloads").Get("artifact").Get("path").String()))
+					hashSlice = append(hashSlice, value.Get("downloads").Get("artifact").Get("sha1").String())
+					urlSlice = append(urlSlice, librariesUrl+"/"+value.Get("downloads").Get("artifact").Get("path").String())
+				}
 			}
 		}
 		return true
@@ -94,38 +129,47 @@ func nativeLibraries(versiondata *gjson.Result) []string {
 	return pathSlice // slice of natives path
 }
 
-func unpackNatives(version *string,nativesSlice []string) (string) {
+func unpackNatives(version string,nativesSlice []string) (string) {
 	logutil.Info("Unpacking natives")
-	path := filepath.Join(gamepath.Versionsdir,*version,*version+"-natives-"+strconv.Itoa(time.Now().Nanosecond()))
-	err := gamepath.Makedir(path); if err != nil { logutil.Error(err.Error()) }
+	target := filepath.Join(gamepath.Versionsdir,version,version+"-natives-"+strconv.Itoa(time.Now().Nanosecond()))
 	for i := range nativesSlice {
-		zipReader,err := zip.OpenReader(pathSlice[i])
-		if err != nil { logutil.Error(err.Error()) }
-		defer zipReader.Close()
-		for _,f := range zipReader.File {
-			openedFiles, err := f.Open(); if err != nil { logutil.Error(err.Error()) }
+		jarFile,err := zip.OpenReader(pathSlice[i])
+		if err != nil { logutil.Error("O"+err.Error()) }
+		defer jarFile.Close()
+		for _,file := range jarFile.File {
+			openedFiles, err := file.Open(); if err != nil { logutil.Error("O2"+err.Error()) }
 			defer openedFiles.Close()
-			if f.FileInfo().IsDir() {
-				os.MkdirAll(filepath.Join(path,f.Name), f.Mode())
+			os.MkdirAll(filepath.Dir(filepath.Join(target,file.Name)),os.ModePerm)
+			if file.FileInfo().IsDir() {
+				continue
 			} else {
-				f, err := os.OpenFile(filepath.Join(path,f.Name), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
-				if err != nil { logutil.Error(err.Error()) }
+				f, err := os.Create(filepath.Join(target,filepath.Base(file.Name)))
+				if err != nil { logutil.Error("O3"+err.Error()) }
 				defer f.Close()
-				if _,err = io.Copy(f,openedFiles); err != nil { logutil.Error(err.Error()) }
+				if _,err = io.Copy(f,openedFiles); err != nil { logutil.Error("O4"+err.Error()) }
 			}
 		}
 	}
-	err = os.RemoveAll(filepath.Join(path,"META-INF")); if err != nil { logutil.Error(err.Error()) }
-	return path
+	fileList,err := os.ReadDir(target)
+	if err != nil { logutil.Error(err.Error()) }
+	for _,file := range fileList {
+		currentFile := filepath.Join(target,file.Name())
+		if file.IsDir() {
+			os.RemoveAll(currentFile)
+		}
+		if (filepath.Ext(currentFile) != ".so" && filepath.Ext(currentFile) != ".dll" && filepath.Ext(currentFile) != ".dylib") {
+			os.RemoveAll(currentFile)
+		}
+	}
+	return target
 }
 
-func Libraries(version *string, versiondata *gjson.Result) ([]string,[]string) {
+func Libraries(version string, versiondata *gjson.Result) ([]string,[]string) {
+	getIdentifier()
 	logutil.Info("Downloading libraries")
 	nativesPath := nativeLibraries(versiondata)
-	downloadutil.DownloadMultiple(urlSlice,pathSlice)
 	defaultLibraries(versiondata)
 	libraryRules(versiondata)
-
 	downloadutil.DownloadMultiple(urlSlice,pathSlice)
 	for i := range pathSlice {
 		if ValidateChecksum(pathSlice[i],hashSlice[i]) == false {

@@ -47,7 +47,7 @@ func Minecraft() string {
 		Makedir(Gamedir)
 		return Gamedir
 	}
-	logutil.Error("OS not supported.")
+	logutil.Critical("OS not supported.")
 	return ""
 }
 
