@@ -8,21 +8,18 @@ import (
 )
 
 func main() {
-	wantedversion := &versionmanager.GameVersion{Version: "1.16.5",VersionType:"release"}
+	wantedversion := &versionmanager.GameVersion{Version: "23w46a",VersionType:"snapshot"}
 	url,ver,err := versionmanager.SelectVersion(wantedversion)
-	if err != nil || url == "" {
-		logutil.Error("Unknown game version or type "+err.Error())
-	}
 
 	versionData,err := versionmanager.ParseVersion(url)
-	if err != nil { logutil.Error(err.Error()) }
+	if err != nil { logutil.Error("Failed to parse version data",err) }
 	resourcemanager.Client(&versionData,ver)
 	resourcemanager.Runtimes(&versionData)
 	arl,aid := resourcemanager.GetAssetProperties(&versionData)
 	assetsData,err := resourcemanager.ParseAssets(arl)
-	if err != nil { logutil.Error(err.Error()) }
+	if err != nil { logutil.Error("Failed to parse assets data",err) }
 	err = resourcemanager.AssetIndex(arl,aid)
-	if err != nil { logutil.Error(err.Error()) }
+	if err != nil { logutil.Error("Failed to get asset index",err) }
 	resourcemanager.Assets(&assetsData,aid)
 	resourcemanager.Log4JConfig(&versionData)
 	resourcemanager.Libraries(wantedversion.Version,&versionData)

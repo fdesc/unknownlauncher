@@ -47,13 +47,13 @@ func Warn(msg string) {
 	Custom(&Loglevel{Header:"WARN",Color: Yellow},msg)(msg)
 }
 
-func Error(msg string) {
-	Custom(&Loglevel{Header:"ERROR",Color: Red},msg)(msg)
+func Error(msg string,err error) {
+	Custom(&Loglevel{Header:"ERROR",Color: Red},msg+" "+err.Error())(msg+" "+err.Error())
 	return
 }
 
-func Critical(msg string) {
-	Custom(&Loglevel{Header:"CRITICAL",Color: BrightRed,Critical:true},msg)(msg)
+func Critical(msg string,err error) {
+	Custom(&Loglevel{Header:"CRITICAL",Color: BrightRed,Critical:true},msg+" "+err.Error())(msg+" "+err.Error())
 }
 
 func Custom(level *Loglevel,msg string) func(msg string) {

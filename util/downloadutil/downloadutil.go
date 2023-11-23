@@ -16,14 +16,14 @@ var client = http.Client{Timeout: 120 * time.Second}
 
 func DownloadSingle(url,path string) error {
 	if _,err := os.Stat(path); err == nil { return err }
-	err := os.MkdirAll(filepath.Dir(path),os.ModePerm); if err != nil { logutil.Critical(err.Error()); return err }
-	out, err := os.Create(path); if err != nil { logutil.Critical(err.Error()); return err }
+	err := os.MkdirAll(filepath.Dir(path),os.ModePerm); if err != nil { logutil.Error("Failed to create directory",err); return err }
+	out, err := os.Create(path); if err != nil { logutil.Error("Failed to create file",err); return err }
 	defer out.Close()
 	time.Sleep(150 * time.Millisecond)
 	resp, err := client.Get(url)
 	if err != nil {
 		if os.IsTimeout(err) {
-			logutil.Error("Timeout while downloading "+filepath.Base(path)+" errors and game crashes are expected.")
+			logutil.Warn("Timeout while downloading "+filepath.Base(path)+" errors and game crashes are expected.")
 		}
 		return err
 	}
@@ -42,14 +42,14 @@ func DownloadMultiple(urlSlice,pathSlice []string) {
 			runtime.LockOSThread()
 			defer receivedWg.Done()
 			if _,err := os.Stat(path); err == nil { return err }
-			err := os.MkdirAll(filepath.Dir(path),os.ModePerm); if err != nil { logutil.Critical(err.Error()); return err }
-			out, err := os.Create(path); if err != nil { logutil.Critical(err.Error()); return err }
+			err := os.MkdirAll(filepath.Dir(path),os.ModePerm); if err != nil { logutil.Error("Failed to create directory",err); return err }
+			out, err := os.Create(path); if err != nil { logutil.Critical("Failed to create file",err); return err }
 			defer out.Close()
 			time.Sleep(150 * time.Millisecond)
 			resp, err := client.Get(url)
 			if err != nil {
 				if os.IsTimeout(err) {
-					logutil.Error("Timeout while downloading "+filepath.Base(path)+" errors and game crashes are expected.")
+					logutil.Warn("Timeout while downloading "+filepath.Base(path)+" errors and game crashes are expected.")
 				}
 				return err
 			}
@@ -64,8 +64,20 @@ func DownloadMultiple(urlSlice,pathSlice []string) {
 }
 
 func GetData(url string) ([]byte,error) {
-	resp, err := client.Get(url); if err != nil { logutil.Error(err.Error()); return nil,err }
+	resp, err := client.Get(url); if err != nil { logutil.Error("Failed to get response",err); return nil,err }
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	return body,nil
+}
+
+func CheckIfExists(url string) bool {
+	resp,err := client.Get(url);
+	if err != nil {
+		logutil.Error("Failed to check if file exists on remote server",err)
+		return false
+	}
+	if (resp.StatusCode != 404 && resp.StatusCode == 200) {
+		return true
+	}
+	return false
 }

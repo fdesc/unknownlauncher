@@ -13,10 +13,10 @@ func ValidateChecksum(path string,hash string) bool {
 	info,_ := os.Stat(path); if info.IsDir() {
 		return true
 	}
-	file,err := os.Open(path); if err != nil { logutil.Error(err.Error()) }
+	file,err := os.Open(path); if err != nil { logutil.Error("Failed to open file",err) }
 	defer file.Close()
 	generatedHash := sha1.New()
-	if _,err := io.Copy(generatedHash,file); err != nil { logutil.Error(err.Error()) }
+	if _,err := io.Copy(generatedHash,file); err != nil { logutil.Error("Failed to copy data",err) }
 	formattedHash := hex.EncodeToString(generatedHash.Sum(nil))
 
 	if formattedHash == hash {

@@ -45,7 +45,15 @@ func Assets(assetsdata *gjson.Result,assetid string) {
 	}
 	logutil.Info("Downloading assets")
 	downloadutil.DownloadMultiple(urlSlice,pathSlice)
-	if assetid == "legacy" || assetid == "pre-1.6" {
+	for i := range pathSlice {
+		if ValidateChecksum(pathSlice[i],hashSlice[i]) == false {
+			os.Remove(pathSlice[i])
+			downloadutil.DownloadSingle(urlSlice[i],pathSlice[i])
+		} else {
+			continue
+		}
+	}
+	if (assetid == "legacy" || assetid == "pre-1.6") {
 		legacyAssets(pathSlice,fileNameSlice,assetid)
 	}
 	logutil.Info("Task downloading assets finished")
@@ -60,15 +68,15 @@ func legacyAssets(pathSlice []string,fileNameSlice []string,assetid string) erro
 	}
 	for i := range pathSlice {
 		file,err := os.Open(pathSlice[i])
-		if err != nil { logutil.Error(err.Error()); return err }
+		if err != nil { logutil.Error("Failed to open file",err); return err }
 		defer file.Close()
 		err = gamepath.Makedir(filepath.Dir(filepath.Join(targetDir,fileNameSlice[i])))
-		if err != nil { logutil.Error(err.Error()); return err }
+		if err != nil { logutil.Error("Failed to create directory",err); return err }
 		destination,err := os.Create(filepath.Join(targetDir,fileNameSlice[i]))
-		if err != nil { logutil.Error(err.Error()); return err }
+		if err != nil { logutil.Error("Failed to create file",err); return err }
 		defer destination.Close()
 		_,err = io.Copy(destination,file)
-		if err != nil { logutil.Error(err.Error()); return err }
+		if err != nil { logutil.Error("Failed to copy data",err); return err }
 	}
 	return nil
 }
