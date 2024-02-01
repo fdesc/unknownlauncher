@@ -1,11 +1,14 @@
 package logutil
 
 import (
+	"path/filepath"
 	"runtime"
 	"bufio"
+	"time"
 	"os"
 )
 
+var CurrentLogData string
 var reset string = "\u001b[0m"
 
 const (
@@ -27,6 +30,11 @@ const (
 	BrightWhite = "\u001b[37;1m"
 )
 
+type Log struct {
+	Data string
+	Date time.Time 
+}
+
 type Loglevel struct {
 	Header string
 	Critical bool
@@ -34,9 +42,34 @@ type Loglevel struct {
 }
 
 func stdoutPrinter(msg string) {
+	CurrentLogData = CurrentLogData + "\n" + msg
 	writer := bufio.NewWriter(os.Stdout)
 	defer writer.Flush()
 	writer.WriteString(msg+"\n")
+}
+
+func Save(path string,logtime time.Time) string {
+	var file *os.File
+	var err error
+	fileName := "launcher_"+logtime.Format("2006-01-02")+".log"
+	file,err = os.Create(filepath.Join(path,"logs","launcher",fileName))
+	if err != nil {
+		if os.IsNotExist(err) {
+			err := os.MkdirAll(filepath.Join(path,"logs","launcher"),os.ModePerm)
+			if err != nil {
+				Error("Failed to create directories for log path",err)
+				return ""
+			}
+			file,err = os.Create(filepath.Join(path,"logs","launcher",fileName))
+		} else {
+			Error("Failed to create file for log",err)
+			return ""
+		}
+	}
+	defer file.Close()
+	_,err = file.WriteString(CurrentLogData)
+	if err != nil { Error("Failed to write log",err) }
+	return filepath.Join(path,"logs","launcher",fileName)
 }
 
 func Info(msg string) {
@@ -49,7 +82,6 @@ func Warn(msg string) {
 
 func Error(msg string,err error) {
 	Custom(&Loglevel{Header:"ERROR",Color: Red},msg+" "+err.Error())(msg+" "+err.Error())
-	return
 }
 
 func Critical(msg string,err error) {

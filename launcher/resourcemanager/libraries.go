@@ -15,7 +15,6 @@ import (
 	"egreg10us/faultylauncher/util/logutil"
 )
 
-const librariesUrl = "https://libraries.minecraft.net"
 var (
 	pathSlice []string
 	urlSlice []string
@@ -35,7 +34,7 @@ func libraryRules(versiondata *gjson.Result) {
 					updateSlices(parsePkgName(value.Get("name").String()))
 					hashSlice = append(hashSlice, value.Get("downloads").Get("artifact").Get("sha1").String())
 				}
-				if (value.Get("rules.0").Get("action").String() == "allow" && value.Get("rules.0").Get("os").Get("name").String() == identifier) == false {
+				if !(value.Get("rules.0").Get("action").String() == "allow" && value.Get("rules.0").Get("os").Get("name").String() == identifier) {
 					pkgname := parseLastPkgElem(value.Get("name").String())
 					if (pkgname == "natives-"+identifier &&
 					    pkgname != "natives-"+identifier+"-"+identifierArch &&
@@ -135,7 +134,7 @@ func unpackNatives(version string,nativesSlice []string) (string) {
 
 func updateSlices(path string) error {
 	pathSlice = append(pathSlice, gamepath.Librariesdir+gamepath.P+path+".jar")
-	urlSlice = append(urlSlice, librariesUrl+"/"+path+".jar")
+	urlSlice = append(urlSlice, "https://libraries.minecraft.net/"+path+".jar")
 	return nil
 }
 
@@ -159,22 +158,31 @@ func parsePkgName(pkgname string) string {
 	return path
 }
 
-func Libraries(version string, versiondata *gjson.Result) ([]string,[]string) {
+func Libraries(version string, versiondata *gjson.Result) ([]string,string) {
 	setIdentifier()
 	logutil.Info("Downloading libraries")
-	nativesPath := nativeLibraries(versiondata)
+	natives := nativeLibraries(versiondata)
 	defaultLibraries(versiondata)
 	libraryRules(versiondata)
 	downloadutil.DownloadMultiple(urlSlice,pathSlice)
 	for i := range pathSlice {
-		if ValidateChecksum(pathSlice[i],hashSlice[i]) == false {
+		if !ValidateChecksum(pathSlice[i],hashSlice[i]) {
 			os.Remove(pathSlice[i])
 			downloadutil.DownloadSingle(urlSlice[i],pathSlice[i])
 		} else {
 			continue
 		}
 	}
-	unpackNatives(version,nativesPath)
+	var nativesPath string
+	if natives != nil {
+		nativesPath = unpackNatives(version,natives)
+	}
 	logutil.Info("Finished downloading libraries")
 	return pathSlice,nativesPath
+}
+
+func CleanLibraryList() {
+	pathSlice = nil
+	urlSlice = nil
+	hashSlice = nil
 }

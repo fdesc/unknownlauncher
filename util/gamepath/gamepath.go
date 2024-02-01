@@ -7,9 +7,10 @@ import (
 	"egreg10us/faultylauncher/util/logutil"
 )
 
-const UserOS string = runtime.GOOS
-const UserArch string = runtime.GOARCH
-const P string = string(os.PathSeparator)
+var SeparateInstallation = false
+const UserOS 		 = runtime.GOOS
+const UserArch string 	 = runtime.GOARCH
+const P string 		 = string(os.PathSeparator)
 
 var (
 	Gamedir string
@@ -20,11 +21,22 @@ var (
 )
 
 func init() {
-	Minecraft()
+	Reload()
+}
+
+func Reload() {
 	Versions()
 	Libraries()
 	Assets()
 	Runtimes()
+	if !SeparateInstallation {
+		Minecraft()	
+		Versions()
+		Libraries()
+		Assets()
+		Runtimes()
+		return
+	}
 }
 
 func Makedir(path string) error {

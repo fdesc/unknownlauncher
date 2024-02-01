@@ -9,21 +9,29 @@ import (
 	"egreg10us/faultylauncher/util/logutil"
 )
 
-func ValidateChecksum(path string,hash string) bool {
-	info,_ := os.Stat(path); if info.IsDir() {
-		return true
-	}
-	file,err := os.Open(path); if err != nil { logutil.Error("Failed to open file",err) }
-	defer file.Close()
-	generatedHash := sha1.New()
-	if _,err := io.Copy(generatedHash,file); err != nil { logutil.Error("Failed to copy data",err) }
-	formattedHash := hex.EncodeToString(generatedHash.Sum(nil))
+var DisableValidation bool
 
-	if formattedHash == hash {
-		logutil.Info("Hash "+formattedHash+" == "+hash)
-		return true
+func ValidateChecksum(path string,hash string) bool {
+	if !DisableValidation {
+		info,err := os.Stat(path); if info.IsDir() {
+			return true
+		}
+		if err != nil { logutil.Error("Failed to get file status",err); return false }
+		file,err := os.Open(path)
+		if err != nil { logutil.Error("Failed to open file",err); return false }
+		defer file.Close()
+		generatedHash := sha1.New()
+		if _,err := io.Copy(generatedHash,file); err != nil { logutil.Error("Failed to copy data",err); return false }
+		formattedHash := hex.EncodeToString(generatedHash.Sum(nil))
+
+		if formattedHash == hash {
+			logutil.Info("Hash "+formattedHash+" == "+hash)
+			return true
+		} else {
+			logutil.Warn("Hash "+formattedHash+" != "+hash+" ("+path+") ")
+			return false
+		}
 	} else {
-		logutil.Warn("Hash "+formattedHash+" != "+hash)
-		return false
+		return true
 	}
 }

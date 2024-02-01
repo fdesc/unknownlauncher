@@ -13,6 +13,7 @@ import (
 )
 
 var client = http.Client{Timeout: 120 * time.Second}
+var CurrentFile string
 
 func DownloadSingle(url,path string) error {
 	if _,err := os.Stat(path); err == nil { return err }
@@ -29,7 +30,8 @@ func DownloadSingle(url,path string) error {
 	}
 	defer resp.Body.Close()
 	_,err = io.Copy(out, resp.Body)
-	logutil.Info("Downloaded "+filepath.Base(path))
+	CurrentFile = filepath.Base(path)
+	logutil.Info("Downloaded "+CurrentFile)
 	return err
 }
 
@@ -49,13 +51,14 @@ func DownloadMultiple(urlSlice,pathSlice []string) {
 			resp, err := client.Get(url)
 			if err != nil {
 				if os.IsTimeout(err) {
-					logutil.Warn("Timeout while downloading "+filepath.Base(path)+" errors and game crashes are expected.")
+					logutil.Warn("Timeout while downloading "+path+" errors and game crashes are expected.")
 				}
 				return err
 			}
 			defer resp.Body.Close()
 			_,err = io.Copy(out, resp.Body)
-			logutil.Info("Downloaded "+filepath.Base(path))
+			CurrentFile = filepath.Base(path)
+			logutil.Info("Downloaded "+CurrentFile)
 			runtime.UnlockOSThread()
 			return err
 		}(urlSlice[i],pathSlice[i],&wg)
@@ -67,17 +70,5 @@ func GetData(url string) ([]byte,error) {
 	resp, err := client.Get(url); if err != nil { logutil.Error("Failed to get response",err); return nil,err }
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
-	return body,nil
-}
-
-func CheckIfExists(url string) bool {
-	resp,err := client.Get(url);
-	if err != nil {
-		logutil.Error("Failed to check if file exists on remote server",err)
-		return false
-	}
-	if (resp.StatusCode != 404 && resp.StatusCode == 200) {
-		return true
-	}
-	return false
+	return body,err
 }

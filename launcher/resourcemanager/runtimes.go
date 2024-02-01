@@ -17,9 +17,8 @@ import (
 	"egreg10us/faultylauncher/util/logutil"
 )
 
-const runtimesMeta = "https://launchermeta.mojang.com/v1/products/java-runtime/2ec0cc96c44e5a76b9c8b7c39df7210883d12871/all.json"
-
 func Runtimes(versiondata *gjson.Result) (string,error) {
+	const runtimesMeta = "https://launchermeta.mojang.com/v1/products/java-runtime/2ec0cc96c44e5a76b9c8b7c39df7210883d12871/all.json"
 	setIdentifier()
 	var requiredComponent string
 	var manifestUrl string
@@ -32,11 +31,9 @@ func Runtimes(versiondata *gjson.Result) (string,error) {
 		if err != nil { logutil.Error("Failed to get jvm runtime data",err); return "",err }
 		if identifier == "osx" {
 			identifier = "mac-os"
-		}
-		if (identifier == "windows") {
+		} else if (identifier == "windows") {
 			manifestUrl = gjson.Get(string(jsonBytes),identifier+"-"+identifierArch).Get(requiredComponent+".0").Get("manifest").Get("url").String()
-		}
-		if (identifierArch == "i386" || identifierArch == "arm64") {
+		} else if (identifierArch == "i386" || identifierArch == "arm64") {
 			if gjson.Get(string(jsonBytes),identifier+"-"+identifierArch).Get(requiredComponent+".0").Exists() {
 				manifestUrl = gjson.Get(string(jsonBytes),identifier+"-"+identifierArch).Get(requiredComponent+".0").Get("manifest").Get("url").String()
 			} else {
@@ -69,7 +66,7 @@ func Runtimes(versiondata *gjson.Result) (string,error) {
 				}
 			}
 			if (value.Get("executable").Exists() && (gamepath.UserOS == "linux" || gamepath.UserOS == "darwin")) {
-				if value.Get("executable").Bool() == true {
+				if value.Get("executable").Bool() {
 					err := os.Chmod(filepath.Join(targetDir,key.String()),0755)
 					if err != nil { logutil.Error("Failed to chmod executable file",err) }
 				}
@@ -92,6 +89,6 @@ func getDefaultJavaInstallation() string {
 		return strings.TrimSpace(strings.ReplaceAll(string(out),"InstallLocation",""))+"bin"+gamepath.P+"java.exe"
 	} else {
 		out,_ := exec.Command("which","java").Output()
-		return string(out)
+		return strings.TrimSuffix(string(out),"\n")
 	}
 }
