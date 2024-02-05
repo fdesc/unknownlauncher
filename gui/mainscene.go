@@ -85,10 +85,19 @@ func mainScene(currentCanvas fyne.Canvas) {
 	playIcon := canvas.NewImageFromResource(theme.MediaPlayIcon())
 	playButton := widget.NewButton("",func(){})
 	playContainer := elements.NewRectangleButtonWithIcon(playHeader,playVersionLabel,playIcon,playButton,127)
-	playButton.OnTapped = func() {
-		launcher.TaskStatus = 0
-		playHeader.SetText("Pending")
-		playIcon = canvas.NewImageFromResource(theme.MoreHorizontalIcon())
+
+	setPlayStatus := func(selection string){
+		if selection == "Pending" {
+			playHeader.SetText("Pending")
+			playIcon = canvas.NewImageFromResource(theme.MoreHorizontalIcon())
+			playButton.Disable()
+			playVersionLabel.Hide()
+		} else {
+			playHeader.SetText("Play")
+			playIcon = canvas.NewImageFromResource(theme.MediaPlayIcon())
+			playButton.Enable()
+			playVersionLabel.Show()
+		}
 		playContainer.Objects[0].(*fyne.Container).
 			      Objects[1].(*fyne.Container).
 			      Objects[0].(*fyne.Container).
@@ -98,8 +107,11 @@ func mainScene(currentCanvas fyne.Canvas) {
 			      Objects[0].(*fyne.Container).
 			      Objects[0] = playIcon
 		playContainer.Refresh()
-		playButton.Disable()
-		playVersionLabel.Hide()
+	}
+
+	playButton.OnTapped = func() {
+		launcher.TaskStatus = 0
+		setPlayStatus("Pending")
 		progressMsg.Show()	
 		progress.Show()
 		var exitErr error
@@ -110,19 +122,11 @@ func mainScene(currentCanvas fyne.Canvas) {
 			go func() {
 				exitErr,exitStdout,logPath = launcher.NewLaunchTask(&account,&profile)
 				if exitErr != nil {
+					launcher.TaskStatus = 0
+					MainWindow.Show()
 					showGameLog(logPath,exitStdout,exitErr)
+					setPlayStatus("Playing")
 					progressMsg.Hide()
-					playHeader.SetText("Play")
-					playIcon = canvas.NewImageFromResource(theme.MediaPlayIcon())
-					playContainer.Objects[0].(*fyne.Container).
-						      Objects[1].(*fyne.Container).
-						      Objects[0].(*fyne.Container).
-						      Objects[0].(*fyne.Container).
-						      Objects[1].(*fyne.Container).
-						      Objects[0].(*fyne.Container).Objects[0].(*fyne.Container).Objects[0] = playIcon
-					playContainer.Refresh()
-					playButton.Enable()
-					playVersionLabel.Show()
 					progress.Hide()
 					return
 				}
@@ -134,7 +138,7 @@ func mainScene(currentCanvas fyne.Canvas) {
 			go func() {
 				for {
 					if downloadutil.CurrentFile != first {
-						time.Sleep(time.Millisecond * 250)
+						time.Sleep(time.Millisecond * 500)
 						progressMsg.Text = downloadutil.CurrentFile
 						progressMsg.Refresh()
 					} 
@@ -151,20 +155,9 @@ func mainScene(currentCanvas fyne.Canvas) {
 						case "DoNothing":
 							continue
 						}
-						if exitErr == nil {
+						if exitErr == nil && exitStdout != "" {
 							MainWindow.Show()
-							playHeader.SetText("Play")
-							playIcon = canvas.NewImageFromResource(theme.MediaPlayIcon())
-							playContainer.Objects[0].(*fyne.Container).
-								      Objects[1].(*fyne.Container).
-								      Objects[0].(*fyne.Container).
-								      Objects[0].(*fyne.Container).
-								      Objects[1].(*fyne.Container).
-								      Objects[0].(*fyne.Container).
-								      Objects[0].(*fyne.Container).
-								      Objects[0] = playIcon
-							playContainer.Refresh()
-							playButton.Enable()
+							setPlayStatus("Playing")
 							return 
 						}
 					}
@@ -174,39 +167,15 @@ func mainScene(currentCanvas fyne.Canvas) {
 		time.Sleep(500 * time.Millisecond)
 	}
 	if launcher.TaskStatus == 1 {
-		playHeader.SetText("Pending")
-		playIcon = canvas.NewImageFromResource(theme.MoreHorizontalIcon())
-		playContainer.Objects[0].(*fyne.Container).
-			      Objects[1].(*fyne.Container).
-			      Objects[0].(*fyne.Container).
-			      Objects[0].(*fyne.Container).
-			      Objects[1].(*fyne.Container).
-			      Objects[0].(*fyne.Container).
-			      Objects[0].(*fyne.Container).
-			      Objects[0] = playIcon
-		playContainer.Refresh()
-		playButton.Disable()
-		playVersionLabel.Hide()
+		setPlayStatus("Pending")
 		progress.Show()
 		progressMsg.Show()
 		go func() {
 			for {
 				if launcher.TaskStatus == -1 {
-					playVersionLabel.Show()
 					progressMsg.Hide()
 					progress.Hide()
-					playHeader.SetText("Play")
-					playIcon = canvas.NewImageFromResource(theme.MediaPlayIcon())
-					playContainer.Objects[0].(*fyne.Container).
-						      Objects[1].(*fyne.Container).
-						      Objects[0].(*fyne.Container).
-						      Objects[0].(*fyne.Container).
-						      Objects[1].(*fyne.Container).
-						      Objects[0].(*fyne.Container).
-						      Objects[0].(*fyne.Container).
-						      Objects[0] = playIcon
-					playContainer.Refresh()
-					playButton.Enable()
+					setPlayStatus("Playing")
 					return 
 				}
 			}
