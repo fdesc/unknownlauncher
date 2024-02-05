@@ -12,8 +12,8 @@ import (
 	"egreg10us/faultylauncher/util/logutil"
 )
 
-const productName = "unknownLauncher"
-const productVersion = "DevBuild 0.1"
+const appName 	 = "unknownLauncher"
+const appVersion = "DevBuild 0.1"
 
 func main() {
 	gamepath.Reload()
@@ -29,7 +29,7 @@ func main() {
 	gui.SetProfilesRoot(&profilesData)
 	mainCanvas := gui.MainWindow.Canvas()
 	gui.NewAccountScene(mainCanvas)
-	gui.MainWindow.SetTitle(productName+": "+productVersion)
+	gui.MainWindow.SetTitle(appName+": "+appVersion)
 	gui.MainWindow.ShowAndRun()
 	logutil.Save(gamepath.Gamedir,currentTime)
 }

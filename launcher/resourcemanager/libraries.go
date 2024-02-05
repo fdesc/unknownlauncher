@@ -5,6 +5,7 @@ import (
 	"archive/zip"
 	"strconv"
 	"strings"
+	"regexp"
 	"time"
 	"os"
 	"io"
@@ -64,27 +65,23 @@ func nativeLibraries(versiondata *gjson.Result) []string {
 	versiondata.Get("libraries").ForEach(func (_,value gjson.Result) bool {
 		if value.Get("natives").Exists() {
 			nativeKey := value.Get("natives").Get(identifier).String()
-			if (strings.Contains(nativeKey,"${arch}") && identifierArchOld != "") {
-				updateSlices(parsePkgName(value.Get("name").String()+":"+strings.ReplaceAll(nativeKey,"${arch}",identifierArchOld)))
-				hashSlice = append(hashSlice, value.Get("downloads").Get("classifiers").Get(strings.ReplaceAll(nativeKey,"${arch}",identifierArchOld)).Get("sha1").String())
+			replaceIdentifier := regexp.MustCompile(`-\${arch}`)
+			replaced := replaceIdentifier.ReplaceAllString(nativeKey,"-"+identifierArchOld)
+			if value.Get("rules.1").Get("action").String() == "disallow" && value.Get("rules.1").Get("os").Get("name").String() != identifier {
+				updateSlices(parsePkgName(value.Get("name").String()+":"+replaced))
+				hashSlice = append(hashSlice, value.Get("downloads").Get("classifiers").Get(replaced).Get("sha1").String())
+			} else if value.Get("rules.0").Get("os").Get("name").String() == identifier {
+				updateSlices(parsePkgName(value.Get("name").String()+":"+replaced))
+				hashSlice = append(hashSlice, value.Get("downloads").Get("classifiers").Get(replaced).Get("sha1").String())
 			}
 			if !value.Get("rules").Exists() {
-				updateSlices(parsePkgName(value.Get("name").String()+":"+nativeKey))
-				hashSlice = append(hashSlice, value.Get("downloads").Get("classifiers").Get(nativeKey).Get("sha1").String())
-			}
-			if (value.Get("rules.0").Get("action").String() == "allow" && value.Get("rules.0").Get("os").Get("name").String() == identifier) {
-				updateSlices(parsePkgName(value.Get("name").String()+":"+nativeKey))
-				hashSlice = append(hashSlice, value.Get("downloads").Get("classifiers").Get(nativeKey).Get("sha1").String())
-			}
-			if (value.Get("rules.0").Get("action").String() == "allow" &&
-			    value.Get("rules.1").Get("action").String() == "disallow" &&
-			    value.Get("rules.1").Get("os").Get("name").String() != identifier) {
 				updateSlices(parsePkgName(value.Get("name").String()+":"+nativeKey))
 				hashSlice = append(hashSlice, value.Get("downloads").Get("classifiers").Get(nativeKey).Get("sha1").String())
 			}
 		}
 		if (value.Get("rules.0").Get("action").String() == "allow" && value.Get("rules.0").Get("os").Get("name").String() == identifier) {
 			pkgname := parseLastPkgElem(value.Get("name").String())
+			logutil.Info(pkgname)
 			if (pkgname == "natives-"+identifier ||
 			    pkgname == "natives-"+identifier+"-"+identifierArch ||
 			    pkgname == identifier+"-"+identifierArch) {
