@@ -104,12 +104,11 @@ func mainScene(currentCanvas fyne.Canvas) {
 		progress.Show()
 		var exitErr error
 		var exitStdout,logPath string
-		var procStat *os.ProcessState
 		go func() {
 			profile := lProfiles.Profiles[lProfiles.LastUsedProfile]
 			account := lAccounts.Accounts[previewAccountUUID]
 			go func() {
-				exitErr,exitStdout,logPath,procStat = launcher.NewLaunchTask(&account,&profile)
+				exitErr,exitStdout,logPath = launcher.NewLaunchTask(&account,&profile)
 				if exitErr != nil {
 					showGameLog(logPath,exitStdout,exitErr)
 					progressMsg.Hide()
@@ -152,7 +151,7 @@ func mainScene(currentCanvas fyne.Canvas) {
 						case "DoNothing":
 							continue
 						}
-						if procStat != nil && procStat.Exited() {
+						if exitErr == nil {
 							MainWindow.Show()
 							playHeader.SetText("Play")
 							playIcon = canvas.NewImageFromResource(theme.MediaPlayIcon())

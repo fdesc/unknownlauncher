@@ -150,21 +150,21 @@ func CleanDuplicateNatives() {
 	}
 }
 
-func NewLaunchTask(accountData *auth.AccountProperties,profileData *profilemanager.ProfileProperties) (error,string,string,*os.ProcessState) {
+func NewLaunchTask(accountData *auth.AccountProperties,profileData *profilemanager.ProfileProperties) (error,string,string) {
 	TaskStatus += 1
 	if TaskStatus > 1 {
-		return nil,"","",nil
+		return nil,"",""
 	}
 	logutil.Info("Started job for version "+profileData.LastGameVersion+" as user "+accountData.Name)
 	var runtimesPath string
 	versionUrl,err := versionmanager.SelectVersion(profileData.LastGameType,profileData.LastGameVersion)
-	if err != nil { logutil.Error("Failed to get version",err); return err,"","",nil }
+	if err != nil { logutil.Error("Failed to get version",err); return err,"","" }
 	versionData,err := versionmanager.ParseVersion(versionUrl)
-	if err != nil { logutil.Error("Failed to parse version",err); return err,"","",nil }
+	if err != nil { logutil.Error("Failed to parse version",err); return err,"","" }
 	err = versionmanager.GetVersionArguments(&versionData)
-	if err != nil { logutil.Error("Failed to save arguments",err); return err,"","",nil }
+	if err != nil { logutil.Error("Failed to save arguments",err); return err,"","" }
 	file,err := os.ReadFile(filepath.Join(gamepath.Assetsdir,"args",profileData.LastGameVersion+".json"))
-	if err != nil { logutil.Error("Failed to read arguments for version",err); return err,"","",nil }
+	if err != nil { logutil.Error("Failed to read arguments for version",err); return err,"","" }
 	arguments,err := parseutil.ParseJSON(string(file),false)
 	if profileData.SeparateInstallation {
 		gamepath.SeparateInstallation = true
@@ -173,19 +173,19 @@ func NewLaunchTask(accountData *auth.AccountProperties,profileData *profilemanag
 	}
 	CleanDuplicateNatives()
 	versionString := arguments.Get("id").String()
-	if err != nil { logutil.Error("Failed to parse arguments for version",err); return err,"","",nil }
+	if err != nil { logutil.Error("Failed to parse arguments for version",err); return err,"","" }
 	resourcemanager.Client(&versionData,versionString)
 	if profileData.JavaDirectory != "" {
 		runtimesPath = profileData.JavaDirectory
 	} else {
 		runtimesPath,err = resourcemanager.Runtimes(&versionData)
 	}
-	if err != nil { logutil.Error("Failed to get runtimes",err); return err,"","",nil }
+	if err != nil { logutil.Error("Failed to get runtimes",err); return err,"","" }
 	assetsUrl := resourcemanager.GetAssetProperties(&versionData)
 	err = resourcemanager.AssetIndex(assetsUrl)
-	if err != nil { logutil.Error("Failed to get assets index",err); return err,"","",nil }
+	if err != nil { logutil.Error("Failed to get assets index",err); return err,"","" }
 	assetsData,err := resourcemanager.ParseAssets()
-	if err != nil { logutil.Error("Failed to parse assets data",err); return err,"","",nil }
+	if err != nil { logutil.Error("Failed to parse assets data",err); return err,"","" }
 	resourcemanager.Assets(&assetsData)
 	logConfigPath := resourcemanager.Log4JConfig(&versionData)
 	librariesPath,nativesPath := resourcemanager.Libraries(versionString,&arguments) 
@@ -198,9 +198,9 @@ func NewLaunchTask(accountData *auth.AccountProperties,profileData *profilemanag
 	gamepath.Reload()
 	if err != nil {
 		logutil.Error("Stderr of the command is:",err)
-		return err,string(stdout),logPath,finalCommand.ProcessState
+		return err,string(stdout),logPath
 	}
-	return err,string(stdout),logPath,finalCommand.ProcessState
+	return err,string(stdout),logPath
 }
 
 // https://gist.github.com/hyg/9c4afcd91fe24316cbf0
