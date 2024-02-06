@@ -7,7 +7,6 @@ import (
 	"github.com/tidwall/gjson"
 	"egreg10us/faultylauncher/util/gamepath"
 	"egreg10us/faultylauncher/util/logutil"
-	"egreg10us/faultylauncher/util/parseutil"
 	"egreg10us/faultylauncher/util/downloadutil"
 )
 
@@ -52,8 +51,8 @@ func GetVersionList() error {
 		logutil.Error("Failed to get data for version",err)
 		return err
 	}
-	LatestRelease = gjson.Get(string(jsonBytes),"latest").Get("release").String()
-	LatestSnapshot = gjson.Get(string(jsonBytes),"latest").Get("snapshot").String()
+	LatestRelease = gjson.Get(string(jsonBytes),"latest.release").String()
+	LatestSnapshot = gjson.Get(string(jsonBytes),"latest.snapshot").String()
 	gjson.Get(string(jsonBytes),"versions").ForEach(func(_,value gjson.Result) bool {
 		if _,ok := VersionList[value.Get("type").String()]; !ok {
 			VersionList[value.Get("type").String()] = []string{}
@@ -71,6 +70,7 @@ func GetVersionList() error {
 	return err
 }
 
+// TODO: do not save local versions to profiles
 func searchLocalVersions() error {
 	var names []string
 	dirEntry,err := os.ReadDir(filepath.Join(gamepath.Assetsdir,"args"))
@@ -89,5 +89,7 @@ func searchLocalVersions() error {
 }
 
 func ParseVersion(url string) (gjson.Result,error) {
-	return parseutil.ParseJSON(url,true)
+	versionData,err := downloadutil.GetData(url)
+	if err != nil { logutil.Error("Failed to get version data",err); return gjson.Result{},err }
+	return gjson.Parse(string(versionData)),err
 }

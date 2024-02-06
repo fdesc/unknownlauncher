@@ -11,7 +11,6 @@ import (
 
 	"github.com/ulikunitz/xz/lzma"
 	"github.com/tidwall/gjson"
-	"egreg10us/faultylauncher/util/parseutil"
 	"egreg10us/faultylauncher/util/downloadutil"
 	"egreg10us/faultylauncher/util/gamepath"
 	"egreg10us/faultylauncher/util/logutil"
@@ -24,7 +23,7 @@ func Runtimes(versiondata *gjson.Result) (string,error) {
 	var manifestUrl string
 	var targetDir string
 	if versiondata.Get("javaVersion").Exists() {
-		requiredComponent = versiondata.Get("javaVersion").Get("component").String()
+		requiredComponent = versiondata.Get("javaVersion.component").String()
 		targetDir = filepath.Join(gamepath.Runtimesdir,requiredComponent)
 		logutil.Info("Required jvm runtime for version is "+requiredComponent)
 		jsonBytes,err := downloadutil.GetData(runtimesMeta)
@@ -32,24 +31,26 @@ func Runtimes(versiondata *gjson.Result) (string,error) {
 		if identifier == "osx" {
 			identifier = "mac-os"
 		} else if (identifier == "windows") {
-			manifestUrl = gjson.Get(string(jsonBytes),identifier+"-"+identifierArch).Get(requiredComponent+".0").Get("manifest").Get("url").String()
+			manifestUrl = gjson.Get(string(jsonBytes),identifier+"-"+identifierArch).Get(requiredComponent+".0.manifest.url").String()
 		} else if (identifierArch == "i386" || identifierArch == "arm64") {
 			if gjson.Get(string(jsonBytes),identifier+"-"+identifierArch).Get(requiredComponent+".0").Exists() {
-				manifestUrl = gjson.Get(string(jsonBytes),identifier+"-"+identifierArch).Get(requiredComponent+".0").Get("manifest").Get("url").String()
+				manifestUrl = gjson.Get(string(jsonBytes),identifier+"-"+identifierArch).Get(requiredComponent+".0.manifest.url").String()
 			} else {
 				logutil.Warn("This architecture does not support this jvm runtime"); return getDefaultJavaInstallation(),nil
 			}
 		} else {
-			manifestUrl = gjson.Get(string(jsonBytes),identifier).Get(requiredComponent+".0").Get("manifest").Get("url").String()
+			manifestUrl = gjson.Get(string(jsonBytes),identifier).Get(requiredComponent+".0.manifest.url").String()
 		}
-		runtimeData,err := parseutil.ParseJSON(manifestUrl,true)
+		manifestData,err := downloadutil.GetData(manifestUrl)
+		if err != nil { logutil.Error("Failed to get manifest data for jvm runtime",err); return "",err }
+		runtimeData := gjson.Parse(string(manifestData))
 		if err != nil { logutil.Error("Failed to parse runtime data",err); return "",err }
 		runtimeData.Get("files").ForEach(func(key,value gjson.Result) bool {
 			if value.Get("type").String() == "file" {
-				if value.Get("downloads").Get("lzma").Exists() {
+				if value.Get("downloads.lzma").Exists() {
 					_,err = os.Stat(filepath.Join(targetDir,key.String()))
 					if err != nil {
-						lzmaData,err := downloadutil.GetData(value.Get("downloads").Get("lzma").Get("url").String())
+						lzmaData,err := downloadutil.GetData(value.Get("downloads.lzma.url").String())
 						if err != nil { logutil.Error("Failed to get runtime lzma archive",err) }
 						read,err := lzma.NewReader(bytes.NewReader(lzmaData))
 						if err != nil { logutil.Error("Failed to read runtime lzma archive",err) }
@@ -62,7 +63,7 @@ func Runtimes(versiondata *gjson.Result) (string,error) {
 						if _,err = io.Copy(file,read); err != nil { logutil.Error("Failed to copy lzma data",err) }
 					}
 				} else {
-					downloadutil.DownloadSingle(value.Get("downloads").Get("raw").Get("url").String(),filepath.Join(targetDir,key.String()))
+					downloadutil.DownloadSingle(value.Get("downloads.raw.url").String(),filepath.Join(targetDir,key.String()))
 				}
 			}
 			if (value.Get("executable").Exists() && (gamepath.UserOS == "linux" || gamepath.UserOS == "darwin")) {

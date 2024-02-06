@@ -7,7 +7,6 @@ import (
 
 	"github.com/tidwall/gjson"
 	"egreg10us/faultylauncher/util/downloadutil"
-	"egreg10us/faultylauncher/util/parseutil"
 	"egreg10us/faultylauncher/util/gamepath"
 	"egreg10us/faultylauncher/util/logutil"
 )
@@ -15,14 +14,14 @@ import (
 var assetID string
 
 func GetAssetProperties(versiondata *gjson.Result) string {
-	assetID = versiondata.Get("assetIndex").Get("id").String()
-	assetsUrl := versiondata.Get("assetIndex").Get("url").String()
+	assetID = versiondata.Get("assetIndex.id").String()
+	assetsUrl := versiondata.Get("assetIndex.url").String()
 	return assetsUrl
 }
 
 func ParseAssets() (gjson.Result,error) {
 	assets,err := os.ReadFile(filepath.Join(gamepath.Assetsdir,"indexes",assetID+".json"))
-	assetsdata,err := parseutil.ParseJSON(string(assets),false)
+	assetsdata := gjson.Parse(string(assets))
 	if err != nil { logutil.Error("Failed to parse assets file",err) }
 	return assetsdata.Get("objects"),err
 }

@@ -26,22 +26,22 @@ func libraryRules(versiondata *gjson.Result) {
 	logutil.Info("Acquiring OS dependent library rules")
 	versiondata.Get("libraries").ForEach(func(_,value gjson.Result) bool {
 		if (value.Get("rules.1").Exists() && !value.Get("natives").Exists()) {
-			if value.Get("rules.1").Get("os").Get("name").String() == identifier {
-					if value.Get("rules.1").Get("action").String() == "allow" {
-						updateSlices(parsePkgName(value.Get("name").String()))
-						hashSlice = append(hashSlice, value.Get("downloads").Get("artifact").Get("sha1").String())
+			if value.Get("rules.1.os.name").String() == identifier {
+					if value.Get("rules.1.action").String() == "allow" {
+						updateSlices(getPkgPath(value.Get("name").String()))
+						hashSlice = append(hashSlice, value.Get("downloads.artifact.sha1").String())
 					}
 				} else {
-					updateSlices(parsePkgName(value.Get("name").String()))
-					hashSlice = append(hashSlice, value.Get("downloads").Get("artifact").Get("sha1").String())
+					updateSlices(getPkgPath(value.Get("name").String()))
+					hashSlice = append(hashSlice, value.Get("downloads.artifact.sha1").String())
 				}
 				if !(value.Get("rules.0").Get("action").String() == "allow" && value.Get("rules.0").Get("os").Get("name").String() == identifier) {
-					pkgname := parseLastPkgElem(value.Get("name").String())
+					pkgname := getLastPkgElem(value.Get("name").String())
 					if (pkgname == "natives-"+identifier &&
 					    pkgname != "natives-"+identifier+"-"+identifierArch &&
 					    pkgname != identifier+"-"+identifierArch) {
-						updateSlices(parsePkgName(value.Get("name").String()))
-						hashSlice = append(hashSlice, value.Get("downloads").Get("artifact").Get("sha1").String())
+						updateSlices(getPkgPath(value.Get("name").String()))
+						hashSlice = append(hashSlice, value.Get("downloads.artifact.sha1").String())
 					}
 				}
 			} 
@@ -52,9 +52,9 @@ func libraryRules(versiondata *gjson.Result) {
 func defaultLibraries(versiondata *gjson.Result) {
 	logutil.Info("Acquiring default libraries")
 	versiondata.Get("libraries").ForEach(func (_,value gjson.Result) bool{
-		if (!value.Get("rules").Exists() && value.Get("downloads").Get("artifact").Exists()) {
-			updateSlices(parsePkgName(value.Get("name").String()))
-			hashSlice = append(hashSlice, value.Get("downloads").Get("artifact").Get("sha1").String())
+		if (!value.Get("rules").Exists() && value.Get("downloads.artifact").Exists()) {
+			updateSlices(getPkgPath(value.Get("name").String()))
+			hashSlice = append(hashSlice, value.Get("downloads.artifact.sha1").String())
 		}
 		return true
 	})
@@ -67,26 +67,25 @@ func nativeLibraries(versiondata *gjson.Result) []string {
 			nativeKey := value.Get("natives").Get(identifier).String()
 			replaceIdentifier := regexp.MustCompile(`-\${arch}`)
 			replaced := replaceIdentifier.ReplaceAllString(nativeKey,"-"+identifierArchOld)
-			if value.Get("rules.1").Get("action").String() == "disallow" && value.Get("rules.1").Get("os").Get("name").String() != identifier {
-				updateSlices(parsePkgName(value.Get("name").String()+":"+replaced))
-				hashSlice = append(hashSlice, value.Get("downloads").Get("classifiers").Get(replaced).Get("sha1").String())
-			} else if value.Get("rules.0").Get("os").Get("name").String() == identifier {
-				updateSlices(parsePkgName(value.Get("name").String()+":"+replaced))
-				hashSlice = append(hashSlice, value.Get("downloads").Get("classifiers").Get(replaced).Get("sha1").String())
+			if value.Get("rules.1.action").String() == "disallow" && value.Get("rules.1.os.name").String() != identifier {
+				updateSlices(getPkgPath(value.Get("name").String()+":"+replaced))
+				hashSlice = append(hashSlice, value.Get("downloads.classifiers").Get(replaced).Get("sha1").String())
+			} else if value.Get("rules.0.os.name").String() == identifier {
+				updateSlices(getPkgPath(value.Get("name").String()+":"+replaced))
+				hashSlice = append(hashSlice, value.Get("downloads.classifiers").Get(replaced).Get("sha1").String())
 			}
 			if !value.Get("rules").Exists() {
-				updateSlices(parsePkgName(value.Get("name").String()+":"+nativeKey))
-				hashSlice = append(hashSlice, value.Get("downloads").Get("classifiers").Get(nativeKey).Get("sha1").String())
+				updateSlices(getPkgPath(value.Get("name").String()+":"+nativeKey))
+				hashSlice = append(hashSlice, value.Get("downloads.classifiers").Get(nativeKey).Get("sha1").String())
 			}
 		}
-		if (value.Get("rules.0").Get("action").String() == "allow" && value.Get("rules.0").Get("os").Get("name").String() == identifier) {
-			pkgname := parseLastPkgElem(value.Get("name").String())
-			logutil.Info(pkgname)
+		if (value.Get("rules.0.action").String() == "allow" && value.Get("rules.0.os.name").String() == identifier) {
+			pkgname := getLastPkgElem(value.Get("name").String())
 			if (pkgname == "natives-"+identifier ||
 			    pkgname == "natives-"+identifier+"-"+identifierArch ||
 			    pkgname == identifier+"-"+identifierArch) {
-				updateSlices(parsePkgName(value.Get("name").String()))
-				hashSlice = append(hashSlice, value.Get("downloads").Get("artifact").Get("sha1").String())
+				updateSlices(getPkgPath(value.Get("name").String()))
+				hashSlice = append(hashSlice, value.Get("downloads.artifact.sha1").String())
 			}
 		}
 		return true
@@ -135,12 +134,12 @@ func updateSlices(path string) error {
 	return nil
 }
 
-func parseLastPkgElem(pkgname string) string {
+func getLastPkgElem(pkgname string) string {
 	pkgNameSplitted := strings.Split(pkgname,":")
 	return pkgNameSplitted[len(pkgNameSplitted)-1]
 }
 
-func parsePkgName(pkgname string) string {
+func getPkgPath(pkgname string) string {
 	pkgNameSplitted := strings.Split(pkgname,":")
 	pkgNameSplitted[0] = strings.ReplaceAll(pkgNameSplitted[0],".","/")
 	if (strings.Contains(pkgNameSplitted[len(pkgNameSplitted)-1],"natives") || strings.Contains(pkgNameSplitted[len(pkgNameSplitted)-1],identifier)) {

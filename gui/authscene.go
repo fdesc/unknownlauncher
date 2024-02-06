@@ -134,7 +134,7 @@ func listAccounts(currentCanvas fyne.Canvas) {
 						),
 						currentCanvas,
 					)
-				modal.Show()
+					modal.Show()
 				}),
                                 widget.NewToolbarAction(theme.DeleteIcon(), func(){
 					headingLabel := widget.NewLabel("Delete account "+label.Text+"?")

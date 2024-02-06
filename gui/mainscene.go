@@ -110,7 +110,6 @@ func mainScene(currentCanvas fyne.Canvas) {
 	}
 
 	playButton.OnTapped = func() {
-		launcher.TaskStatus = 0
 		setPlayStatus("Pending")
 		progressMsg.Show()	
 		progress.Show()
@@ -122,7 +121,6 @@ func mainScene(currentCanvas fyne.Canvas) {
 			go func() {
 				exitErr,exitStdout,logPath = launcher.NewLaunchTask(&account,&profile)
 				if exitErr != nil {
-					launcher.TaskStatus = 0
 					MainWindow.Show()
 					showGameLog(logPath,exitStdout,exitErr)
 					setPlayStatus("Playing")

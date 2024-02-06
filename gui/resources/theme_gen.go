@@ -18,6 +18,8 @@ func (DefaultDarkTheme) Color(c fyne.ThemeColorName, v fyne.ThemeVariant) color.
 		return color.RGBA{R: 18, G: 18, B: 18, A: 255}
 	case theme.ColorNameOverlayBackground:
 		return color.RGBA{R :22, G: 22, B: 22, A:255}
+	case theme.ColorNameMenuBackground:
+		return color.RGBA{R: 22, G: 22, B: 22, A: 255}
 	case theme.ColorNameButton:
 		return color.RGBA{R: 32, G: 32, B: 32, A: 255}
 	case theme.ColorNameDisabledButton:
@@ -97,6 +99,8 @@ func (DefaultLightTheme) Color(c fyne.ThemeColorName, v fyne.ThemeVariant) color
         case theme.ColorNameBackground:
                 return color.RGBA{R: 235, G: 235, B: 235, A: 255}
 	case theme.ColorNameOverlayBackground:
+		return color.RGBA{R :220, G: 220, B: 220, A: 255}
+	case theme.ColorNameMenuBackground:
 		return color.RGBA{R :220, G: 220, B: 220, A: 255}
         case theme.ColorNameButton:
                 return color.RGBA{R: 191, G: 191, B: 191, A: 255}

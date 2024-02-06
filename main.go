@@ -13,7 +13,7 @@ import (
 )
 
 const appName 	 = "unknownLauncher"
-const appVersion = "DevBuild 0.1"
+const appVersion = "DevBuild 0.2"
 
 func main() {
 	gamepath.Reload()

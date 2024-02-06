@@ -19,7 +19,6 @@ import (
 	"egreg10us/faultylauncher/launcher/versionmanager"
 	"egreg10us/faultylauncher/launcher/resourcemanager"
 	"egreg10us/faultylauncher/util/downloadutil"
-	"egreg10us/faultylauncher/util/parseutil"
 	"egreg10us/faultylauncher/util/gamepath"
 	"egreg10us/faultylauncher/util/logutil"
 )
@@ -119,17 +118,23 @@ func (ls *LauncherSettings) SaveToFile() error {
 }
 
 func GetCrashLog(gameStdout string) string {
-	findPathRegex := regexp.MustCompile(`[^#]+$`)
-	found := findPathRegex.FindAllString(gameStdout,len(gameStdout))
-	if len(found) > 1 && found[0] != "" {
-		removeWhitespace := regexp.MustCompile(`[^\S]`)
-		path := removeWhitespace.ReplaceAllString(found[0],"")
-		content,err := os.ReadFile(path)
-		if err != nil { logutil.Error("Failed to get contents of crash log",err) }
-		return string(content)
-	} else {
-		return ""
+	var found string
+	scanner := bufio.NewScanner(strings.NewReader(gameStdout))
+	for scanner.Scan() {
+		if len(scanner.Text()) > 5 && scanner.Text()[:5] == "#@!@#" {
+			findPath := regexp.MustCompile(`(/|C:\\).+`)
+			found = findPath.FindAllString(scanner.Text(),len(scanner.Text()))[0]
+		}
 	}
+	if found != "" {
+		content,err := os.ReadFile(found)
+		if err != nil {
+			logutil.Error("Failed to read crash log",err)
+			return ""
+		}
+		return string(content)
+	}
+	return ""
 }
 
 func CleanDuplicateNatives() {
@@ -151,7 +156,7 @@ func CleanDuplicateNatives() {
 }
 
 func NewLaunchTask(accountData *auth.AccountProperties,profileData *profilemanager.ProfileProperties) (error,string,string) {
-	TaskStatus += 1
+	TaskStatus++
 	if TaskStatus > 1 {
 		return nil,"",""
 	}
@@ -163,9 +168,9 @@ func NewLaunchTask(accountData *auth.AccountProperties,profileData *profilemanag
 	if err != nil { logutil.Error("Failed to parse version",err); return err,"","" }
 	err = versionmanager.GetVersionArguments(&versionData)
 	if err != nil { logutil.Error("Failed to save arguments",err); return err,"","" }
-	file,err := os.ReadFile(filepath.Join(gamepath.Assetsdir,"args",profileData.LastGameVersion+".json"))
+	content,err := os.ReadFile(filepath.Join(gamepath.Assetsdir,"args",profileData.LastGameVersion+".json"))
 	if err != nil { logutil.Error("Failed to read arguments for version",err); return err,"","" }
-	arguments,err := parseutil.ParseJSON(string(file),false)
+	arguments := gjson.Parse(string(content))
 	if profileData.SeparateInstallation {
 		gamepath.SeparateInstallation = true
 		gamepath.Gamedir = profileData.GameDirectory
@@ -196,6 +201,7 @@ func NewLaunchTask(accountData *auth.AccountProperties,profileData *profilemanag
 	logutil.Info("Command output is:"+"\n"+string(stdout))
 	gamepath.SeparateInstallation = false
 	gamepath.Reload()
+	TaskStatus = 0
 	if err != nil {
 		logutil.Error("Stderr of the command is:",err)
 		return err,string(stdout),logPath
