@@ -211,7 +211,6 @@ func NewLaunchTask(accountData *auth.AccountProperties,profileData *profilemanag
 
 // https://gist.github.com/hyg/9c4afcd91fe24316cbf0
 func InvokeDefault(url string) error {
-	logutil.Info(gamepath.Gamedir)
 	logutil.Info("Starting default application for operation")
 	var err error
 	switch runtime.GOOS {
