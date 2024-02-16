@@ -1,6 +1,7 @@
 package main
 
 import (
+	"path/filepath"
 	"time"
 
 	"egreg10us/faultylauncher/gui"
@@ -13,17 +14,27 @@ import (
 )
 
 const appName 	 = "unknownLauncher"
-const appVersion = "DevBuild 0.2"
+const appVersion = "Alpha 0.1"
+
+// TODO: use zstd compression for launcher logs
+// TODO: use maps instead of slices in function generateArguments at launcher package
 
 func main() {
 	gamepath.Reload()
-	currentTime := time.Now()
-	launcher.GetLauncherContent()
+	logutil.CurrentLogPath = filepath.Join(gamepath.Gamedir,"logs","launcher")
+	logutil.Info("Starting application... the time is "+logutil.CurrentLogTime+" | "+time.Now().Format("15.04.05"))
 	versionmanager.GetVersionList()
+	launcher.GetLauncherContent()
 	profilesData,err := profilemanager.ReadProfilesRoot()
-	if err != nil { logutil.Error("Failed to read profiles root",err) }
+	if err != nil { 
+		logutil.Error("Failed to read profiles root",err)
+		gui.ErrorScene(err)
+	}
 	authData,err := auth.ReadAccountsRoot()
-	if err != nil { logutil.Error("Failed to read accounts root",err) }
+	if err != nil { 
+		logutil.Error("Failed to read accounts root",err)
+		gui.ErrorScene(err)
+	}
 	gui.ReloadSettings()
 	gui.SetAccountsRoot(&authData)
 	gui.SetProfilesRoot(&profilesData)
@@ -31,5 +42,4 @@ func main() {
 	gui.NewAccountScene(mainCanvas)
 	gui.MainWindow.SetTitle(appName+": "+appVersion)
 	gui.MainWindow.ShowAndRun()
-	logutil.Save(gamepath.Gamedir,currentTime)
 }

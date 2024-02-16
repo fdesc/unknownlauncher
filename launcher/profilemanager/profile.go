@@ -43,7 +43,7 @@ type ProfileProperties struct {
 func ReadProfilesRoot() (ProfilesRoot,error) {
 	logutil.Info("Reading the profiles file (launcher_profiles.json)")
 	if gamepath.SeparateInstallation {
-		gamepath.Minecraft()
+		gamepath.Mcdir()
 	}
 	file,err := os.Open(filepath.Join(gamepath.Gamedir,"launcher_profiles.json"))
 	if err != nil {
@@ -69,14 +69,14 @@ func ReadProfilesRoot() (ProfilesRoot,error) {
 			io.Copy(file,bytes.NewReader(out))
 			return *pRoot,nil
 		}
-		logutil.Error("Failed to open launcher_profiles.json:",err); return ProfilesRoot{},err
+		logutil.Error("Failed to open launcher_profiles.json",err); return ProfilesRoot{},err
 	}
 	defer file.Close()
 	read,err := io.ReadAll(file)
-	if err != nil { logutil.Error("Failed to read contents of launcher_profiles.json:",err); return ProfilesRoot{},err }
+	if err != nil { logutil.Error("Failed to read contents of launcher_profiles.json",err); return ProfilesRoot{},err }
 	readProfilesRoot := ProfilesRoot{}
 	err = json.Unmarshal(read,&readProfilesRoot)
-	if err != nil { logutil.Error("Failed to unmarshal the json data:",err); return ProfilesRoot{},err }
+	if err != nil { logutil.Error("Failed to unmarshal the json data",err); return ProfilesRoot{},err }
 	return readProfilesRoot,err
 }
 
@@ -93,7 +93,7 @@ func CreateDefaultProfiles() (map[string]ProfileProperties,error) {
 	snapshotProfile := &ProfileProperties{
 		Name:"",
 		Type:"latest-snapshot",
-		LastGameType: "release",
+		LastGameType: "snapshot",
 		LastGameVersion: versionmanager.LatestSnapshot,
 		Created:time.Now().Format(time.RFC3339),
 		LastUsed:time.Now().Format(time.RFC3339),
@@ -132,9 +132,9 @@ func GetProfileUUID(pData *map[string]ProfileProperties,profileInfo string) stri
 
 func GenerateProfileUUID() (string,error) {
 	generatedUUID,err := uuid.NewRandom()
-	if err != nil { logutil.Error("Failed to generate random UUID for profile:",err); return "",err }
+	if err != nil { logutil.Error("Failed to generate random UUID for profile",err); return "",err }
 	formattedUUID := strings.ReplaceAll(generatedUUID.String(),"-","")
-	return formattedUUID,nil
+	return formattedUUID,err
 }
 
 func (pData *ProfileProperties) SaveProfile() (map[string]ProfileProperties,error) {

@@ -54,7 +54,7 @@ func Runtimes(versiondata *gjson.Result) (string,error) {
 						if err != nil { logutil.Error("Failed to get runtime lzma archive",err) }
 						read,err := lzma.NewReader(bytes.NewReader(lzmaData))
 						if err != nil { logutil.Error("Failed to read runtime lzma archive",err) }
-						err = gamepath.Makedir(filepath.Dir(filepath.Join(targetDir,key.String())))
+						err = os.MkdirAll(filepath.Dir(filepath.Join(targetDir,key.String())),os.ModePerm)
 						if err != nil { logutil.Error("Failed to create directory",err) }
 						file,err := os.Create(filepath.Join(targetDir,key.String()))
 						if err != nil { logutil.Error("Failed to create file",err) }

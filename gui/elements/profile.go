@@ -6,6 +6,9 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
+
+	"github.com/sqweek/dialog"
+	"egreg10us/faultylauncher/util/logutil"
 )
 
 func NewProfileNameElem(pName string) (*widget.Label,*widget.Entry) {
@@ -50,12 +53,10 @@ func NewVersionElem(typeList []string,versionList map[string][]string,lastVersio
 }
 
 func NewGameDirElem(pGamedir string,pSeparate bool) (*widget.Label,*widget.Entry,*widget.Button,*widget.Check) {
-	button := widget.NewButton("Browse",func(){})
-	text := widget.NewLabel("Game directory")
-	entry := widget.NewEntry()
-	entry.Validator = fyne.StringValidator(ValidateGameDir())
 	separateInstallation := widget.NewCheck("Separate installation",func(value bool){})
 	separateInstallation.Disable()
+	entry := widget.NewEntry()
+	entry.Validator = fyne.StringValidator(ValidateGameDir())
 	entry.SetPlaceHolder("Default")
 	entry.OnChanged = func(text string){
 		if len(text) > 0 {
@@ -71,6 +72,18 @@ func NewGameDirElem(pGamedir string,pSeparate bool) (*widget.Label,*widget.Entry
 		}
 		separateInstallation.Enable()
 	}
+	button := widget.NewButton("Browse",func(){
+		entry.Disable()
+		filename,err := dialog.Directory().Title("Select game directory").Browse()
+		if err != nil && err != dialog.ErrCancelled { 
+			logutil.Error("Dialog failed to load directory",err)
+			return
+		}
+		entry.Text = filename
+		if entry.Text != "" { separateInstallation.Enable() }
+		entry.Enable()
+	})
+	text := widget.NewLabel("Game directory")
 	return text,entry,button,separateInstallation
 }
 
@@ -79,7 +92,16 @@ func NewJavaDirElem(pJavaDir string) (*widget.Label,*widget.Entry,*widget.Button
 	entry := widget.NewEntry()
 	entry.Validator = fyne.StringValidator(ValidateJavaExec())
 	entry.SetPlaceHolder("Version default")
-	button := widget.NewButton("Browse",func(){})
+	button := widget.NewButton("Browse",func() {
+		entry.Disable()
+		filename,err := dialog.File().Load()
+		if err != nil && err != dialog.ErrCancelled { 
+			logutil.Error("Dialog failed to load file",err)
+			return
+		}
+		entry.Text = filename
+		entry.Enable()
+	})
 	if pJavaDir != "" {
 		entry.Text = pJavaDir
 	}

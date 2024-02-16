@@ -98,6 +98,9 @@ func ReadLauncherSettings() (*LauncherSettings,error) {
 			continue
 		}
 	}
+	if settings.LauncherTheme == "" {
+		return ReadLauncherSettings()
+	}
 	resourcemanager.DisableValidation = settings.DisableValidation
 	return settings,err
 }
@@ -137,7 +140,7 @@ func GetCrashLog(gameStdout string) string {
 	return ""
 }
 
-func CleanDuplicateNatives() {
+func cleanDuplicateNatives() {
 	logutil.Info("Cleaning duplicate natives")
 	nativesRegex := regexp.MustCompile(`.*-natives-.*`)
 	versionDirs,err := os.ReadDir(gamepath.Versionsdir)
@@ -155,55 +158,89 @@ func CleanDuplicateNatives() {
 	}
 }
 
-func NewLaunchTask(accountData *auth.AccountProperties,profileData *profilemanager.ProfileProperties) (error,string,string) {
-	TaskStatus++
-	if TaskStatus > 1 {
-		return nil,"",""
-	}
-	logutil.Info("Started job for version "+profileData.LastGameVersion+" as user "+accountData.Name)
+func offlineTask(accountData *auth.AccountProperties,profileData *profilemanager.ProfileProperties) (error,string,string) {
+	var err error
 	var runtimesPath string
-	versionUrl,err := versionmanager.SelectVersion(profileData.LastGameType,profileData.LastGameVersion)
-	if err != nil { logutil.Error("Failed to get version",err); return err,"","" }
-	versionData,err := versionmanager.ParseVersion(versionUrl)
-	if err != nil { logutil.Error("Failed to parse version",err); return err,"","" }
-	err = versionmanager.GetVersionArguments(&versionData)
-	if err != nil { logutil.Error("Failed to save arguments",err); return err,"","" }
 	content,err := os.ReadFile(filepath.Join(gamepath.Assetsdir,"args",profileData.LastGameVersion+".json"))
 	if err != nil { logutil.Error("Failed to read arguments for version",err); return err,"","" }
 	arguments := gjson.Parse(string(content))
+	versionId := arguments.Get("id").String()
+	jvmType := arguments.Get("jvmtype").String()
 	if profileData.SeparateInstallation {
 		gamepath.SeparateInstallation = true
 		gamepath.Gamedir = profileData.GameDirectory
 		gamepath.Reload()
 	}
-	CleanDuplicateNatives()
-	versionString := arguments.Get("id").String()
-	if err != nil { logutil.Error("Failed to parse arguments for version",err); return err,"","" }
-	resourcemanager.Client(&versionData,versionString)
+	cleanDuplicateNatives()
 	if profileData.JavaDirectory != "" {
 		runtimesPath = profileData.JavaDirectory
 	} else {
-		runtimesPath,err = resourcemanager.Runtimes(&versionData)
+		runtimesPath = filepath.Join(gamepath.Runtimesdir,jvmType)
 	}
-	if err != nil { logutil.Error("Failed to get runtimes",err); return err,"","" }
-	assetsUrl := resourcemanager.GetAssetProperties(&versionData)
-	err = resourcemanager.AssetIndex(assetsUrl)
-	if err != nil { logutil.Error("Failed to get assets index",err); return err,"","" }
+	librariesPath,nativesPath := resourcemanager.Libraries(versionId,&arguments) 
+	resourcemanager.CleanLibraryList()
+	finalCommand,logPath := generateArguments(accountData,profileData,&arguments,runtimesPath,nativesPath,"",librariesPath)
+	stdout,err := finalCommand.CombinedOutput()
+	logutil.Info("Command output is"+"\n"+string(stdout))
+	gamepath.SeparateInstallation = false
+	gamepath.Reload()
+	if err != nil {
+		logutil.Error("Stderr of the command is",err)
+		return err,string(stdout),logPath
+	}
+	return err,string(stdout),logPath
+}
+
+func NewLaunchTask(accountData *auth.AccountProperties,profileData *profilemanager.ProfileProperties) (error,string,string) {
+	TaskStatus++
+	logutil.Info("Started job for version "+profileData.LastGameVersion+" as user "+accountData.Name)
+	if OfflineMode {
+		return offlineTask(accountData,profileData)
+	}
+	var err error
+	var runtimesPath string
+	versionUrl,err := versionmanager.SelectVersion(profileData.LastGameType,profileData.LastGameVersion)
+	if err != nil { return err,"","" }
+	versionData,err := versionmanager.ParseVersion(versionUrl)
+	if err != nil { return err,"","" }
+	err = versionmanager.GetVersionArguments(&versionData)
+	if err != nil { return err,"","" }
+	content,err := os.ReadFile(filepath.Join(gamepath.Assetsdir,"args",profileData.LastGameVersion+".json"))
+	if err != nil { logutil.Error("Failed to read arguments for version",err); return err,"","" }
+	arguments := gjson.Parse(string(content))
+	versionId := arguments.Get("id").String()
+	jvmType := arguments.Get("jvmtype").String()
+	if profileData.SeparateInstallation {
+		gamepath.SeparateInstallation = true
+		gamepath.Gamedir = profileData.GameDirectory
+		gamepath.Reload()
+	}
+	cleanDuplicateNatives()
+	err = resourcemanager.Client(&versionData,versionId)
+	if err != nil { return err,"","" }
+	if profileData.JavaDirectory != "" {
+		runtimesPath = profileData.JavaDirectory
+	} else if _,err := os.Stat(filepath.Join(gamepath.Runtimesdir,jvmType)); err != nil {
+		runtimesPath,err = resourcemanager.Runtimes(&versionData)
+	} else {
+		runtimesPath = filepath.Join(gamepath.Runtimesdir,jvmType)
+	}
+	if err != nil { return err,"","" }
+	err = resourcemanager.AssetIndex(resourcemanager.GetAssetProperties(&versionData))
+	if err != nil { return err,"","" }
 	assetsData,err := resourcemanager.ParseAssets()
-	if err != nil { logutil.Error("Failed to parse assets data",err); return err,"","" }
+	if err != nil { return err,"","" }
 	resourcemanager.Assets(&assetsData)
 	logConfigPath := resourcemanager.Log4JConfig(&versionData)
-	librariesPath,nativesPath := resourcemanager.Libraries(versionString,&arguments) 
+	librariesPath,nativesPath := resourcemanager.Libraries(versionId,&arguments) 
 	resourcemanager.CleanLibraryList()
 	finalCommand,logPath := generateArguments(accountData,profileData,&arguments,runtimesPath,nativesPath,logConfigPath,librariesPath)
 	stdout,err := finalCommand.CombinedOutput()
-	runtimesPath = ""
-	logutil.Info("Command output is:"+"\n"+string(stdout))
+	logutil.Info("Command output is"+"\n"+string(stdout))
 	gamepath.SeparateInstallation = false
 	gamepath.Reload()
-	TaskStatus = 0
 	if err != nil {
-		logutil.Error("Stderr of the command is:",err)
+		logutil.Error("Stderr of the command is",err)
 		return err,string(stdout),logPath
 	}
 	return err,string(stdout),logPath
@@ -221,7 +258,7 @@ func InvokeDefault(url string) error {
 	case "darwin":
 		err = exec.Command("open",url).Start()
 	}
-	if err != nil { logutil.Error("Failed to invoke default application:",err); return err }
+	if err != nil { logutil.Error("Failed to invoke default application",err); return err }
 	return err
 }
 
@@ -230,6 +267,7 @@ func generateArguments(accountData *auth.AccountProperties,profileData *profilem
 	var jvmArgs []string
 	var gameArgs []string
 	var classPath string
+	var classPathSeparator string
 	gameLogPath := filepath.Join(gamepath.Gamedir,"logs","latest.log")
 	jvmArgs = []string{"-Xdiag","-XX:+UnlockExperimentalVMOptions","-XX:+UseG1GC","-XX:G1NewSizePercent=20","-XX:G1ReservePercent=20","-XX:MaxGCPauseMillis=50","-XX:G1HeapRegionSize=16M"}
 	if runtime.GOOS == "darwin" {
@@ -248,11 +286,13 @@ func generateArguments(accountData *auth.AccountProperties,profileData *profilem
 		jvmArgs = append(jvmArgs,splitRegex.FindAllString(profileData.JVMArgs,-1)...)
 	}
 	if runtime.GOOS == "windows" {
-		classPath = strings.Join(librariesPath,";")
-		classPath = classPath+";"+filepath.Join(gamepath.Versionsdir,profileData.LastGameVersion,profileData.LastGameVersion+".jar")
+		classPathSeparator = ";"
+		classPath = strings.Join(librariesPath,classPathSeparator)
+		classPath = classPath+classPathSeparator+filepath.Join(gamepath.Versionsdir,profileData.LastGameVersion,profileData.LastGameVersion+".jar")
 	} else {
-		classPath = strings.Join(librariesPath,":")
-		classPath = classPath+":"+filepath.Join(gamepath.Versionsdir,profileData.LastGameVersion,profileData.LastGameVersion+".jar")
+		classPathSeparator = ":"
+		classPath = strings.Join(librariesPath,classPathSeparator)
+		classPath = classPath+classPathSeparator+filepath.Join(gamepath.Versionsdir,profileData.LastGameVersion,profileData.LastGameVersion+".jar")
 	}
 	mainClass := argumentsData.Get("mainclass").String()
 	if argumentsData.Get("arguments").String() == "default" {
@@ -330,7 +370,21 @@ func generateArguments(accountData *auth.AccountProperties,profileData *profilem
 	jvmArgs = append(jvmArgs,gameArgs...)
 	os.Chdir(gamepath.Gamedir)
 	logutil.Info("Java path is "+runtimesPath)
-	logutil.Info("Generated command arguments:"+"\n"+strings.Join(jvmArgs," "))
+	previewArgs := make([]string,len(jvmArgs))
+	copy(previewArgs,jvmArgs)
+	for i := range previewArgs {
+		switch previewArgs[i] {
+		case "-cp":
+			previewArgs[i+1] = strings.Replace(previewArgs[i+1],classPathSeparator,"\n | ",len(previewArgs[i+1]))
+		case "--accessToken":
+			previewArgs[i+1] = "HIDDEN"
+		case "--session":
+			previewArgs[i+1] = "HIDDEN"
+		default:
+			continue
+		}
+	}
+	logutil.Info("Generated command arguments:"+"\n"+strings.Join(previewArgs,"\n"))
 	TaskStatus = -1
 	return exec.Command(runtimesPath,jvmArgs...),gameLogPath
 }

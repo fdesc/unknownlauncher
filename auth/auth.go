@@ -12,7 +12,7 @@ import (
 
 type AccountsRoot struct {
 	Accounts map[string]AccountProperties `json:"accounts"`
-	LastUsed string `json:"lastUsed"`
+	LastUsed string `json:"lastUsed,omitempty"`
 }
 
 type AccountProperties struct {
@@ -27,16 +27,22 @@ func ReadAccountsRoot() (AccountsRoot,error) {
 	file,err := os.Open(filepath.Join(gamepath.Gamedir,"accounts.json"))
 	if err != nil {
 		if os.IsNotExist(err) {
-			os.Create(filepath.Join(gamepath.Gamedir,"accounts.json"))
-			return AccountsRoot{},err
+			emptyroot := AccountsRoot{Accounts:nil}
+			_,err := os.Create(filepath.Join(gamepath.Gamedir,"accounts.json"))
+			if err != nil { logutil.Error("Failed to create accounts file",err); return AccountsRoot{},err }
+			emptyroot.SaveToFile()
+			return emptyroot,nil
 		}
 		logutil.Error("Failed to open accounts file",err); return AccountsRoot{},err
 	}
+	defer file.Close()
 	read,err := io.ReadAll(file)
 	if err != nil { logutil.Error("Failed to read contents of accounts.json",err); return AccountsRoot{},err }
 	readAccountsRoot := AccountsRoot{}
 	err = json.Unmarshal(read,&readAccountsRoot)
-	if err != nil { logutil.Error("Failed to unmarshal accounts.json",err); return AccountsRoot{},err }
+	if err != nil {
+		logutil.Error("Failed to unmarshal accounts.json",err); return AccountsRoot{},err
+	}
 	return readAccountsRoot,err
 }
 

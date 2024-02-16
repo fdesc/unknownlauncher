@@ -10,14 +10,27 @@ import(
 	"fyne.io/fyne/v2/data/binding"
 
 	"egreg10us/faultylauncher/auth"
+	"egreg10us/faultylauncher/util/logutil"
 )
 
 func NewAccountScene(currentCanvas fyne.Canvas) {
 	if lAccounts.LastUsed != "" && previewAccountName == "" {
 		lastUsed := lAccounts.Accounts[lAccounts.LastUsed]
 		if lastUsed.AccountType == "offline" {
-			skinData,_ := auth.GetSkinData(auth.InitializeClient(),lastUsed.AccountUUID)
-			skinUrl := auth.GetSkinUrl(skinData)
+			logutil.Info("Loading the last used account with name: "+lastUsed.Name)
+			skinUrl,uuid := auth.PerformOfflineAuthentication(lastUsed.Name)
+			if uuid == "" {
+				logutil.Warn("Failed to get UUID")
+				setCurrentAccountProperties(skinUrl)
+				setCurrentProfileProperties()
+				return
+			}
+			if lAccounts.Accounts[lAccounts.LastUsed].Name == lastUsed.Name && lAccounts.Accounts[lAccounts.LastUsed].AccountUUID != uuid {
+				delete(lAccounts.Accounts,lAccounts.Accounts[lAccounts.LastUsed].AccountUUID)
+			}
+			lAccounts.Accounts[uuid] = auth.SaveOfflineAccount(lastUsed.Name,uuid)
+			lAccounts.LastUsed = uuid
+			lAccounts.SaveToFile()
 			setCurrentAccountProperties(skinUrl)
 			setCurrentProfileProperties()
 			mainScene(currentCanvas)
@@ -68,7 +81,7 @@ func offlineAuthScene(currentCanvas fyne.Canvas) {
 			currentCanvas.Refresh(explanationField)
 			return
 		}
-		account := auth.SaveOfflineAccount(usernameEntry.Text,uuid)
+		logutil.Info("Saved offline account with name: "+usernameEntry.Text)
 		if lAccounts.Accounts == nil {
 			lAccounts.Accounts = make(map[string]auth.AccountProperties)
 		}
@@ -77,7 +90,7 @@ func offlineAuthScene(currentCanvas fyne.Canvas) {
 				return
 			}
 		}
-		lAccounts.Accounts[uuid] = account
+		lAccounts.Accounts[uuid] = auth.SaveOfflineAccount(usernameEntry.Text,uuid)
 		lAccounts.LastUsed = uuid
 		lAccounts.SaveToFile()
 		setCurrentAccountProperties(skinUrl)
@@ -102,6 +115,7 @@ func offlineAuthScene(currentCanvas fyne.Canvas) {
 }
 
 func listAccounts(currentCanvas fyne.Canvas) {
+	logutil.Info("Listing accounts")
 	var accountsData = make(map[string]auth.AccountProperties)
 	var displayNameSlices []string
         heading := widget.NewRichTextFromMarkdown("# Select an account")
@@ -151,6 +165,7 @@ func listAccounts(currentCanvas fyne.Canvas) {
 								layout.NewGridLayoutWithRows(1),
 								widget.NewButton("No",func(){modal.Hide()}),
 								widget.NewButton("Yes",func(){
+									logutil.Info("Removing account")
 									delete(lAccounts.Accounts,accountsData[label.Text].AccountUUID)
 									lAccounts.SaveToFile()
 									listAccounts(currentCanvas)
@@ -176,6 +191,7 @@ func listAccounts(currentCanvas fyne.Canvas) {
 	list.OnSelected = func(i widget.ListItemID) {
 		val,_ := data.GetValue(i)
 		lAccounts.LastUsed = accountsData[val].AccountUUID
+		logutil.Info("Setting the last used account to the account with name: "+lAccounts.Accounts[lAccounts.LastUsed].Name)
 		lAccounts.SaveToFile()
 		if accountsData[val].AccountType == "offline" {
 			skinData,_ := auth.GetSkinData(auth.InitializeClient(),accountsData[val].AccountUUID)

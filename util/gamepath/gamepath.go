@@ -25,64 +25,67 @@ func init() {
 }
 
 func Reload() {
-	Versions()
-	Libraries()
-	Assets()
-	Runtimes()
 	if !SeparateInstallation {
-		Minecraft()	
+		Mcdir()	
 		Versions()
 		Libraries()
 		Assets()
 		Runtimes()
 		return
 	}
+	Versions()
+	Libraries()
+	Assets()
+	Runtimes()
 }
 
-func Makedir(path string) error {
-	err := os.MkdirAll(path,os.ModePerm)
-	return err
-}
-
-func Minecraft() string {
+func Mcdir() string {
 	switch UserOS {
 	case "windows":
 		Gamedir = os.Getenv("APPDATA")+P+".minecraft" 
-		Makedir(Gamedir)
+		err := os.MkdirAll(Gamedir,os.ModePerm)
+		if err != nil { logutil.Error("Failed to create game directories",err); os.Exit(1) }
 		return Gamedir
 	case "darwin":
 		Gamedir = os.Getenv("HOME")+P+"Library"+P+"Application Support"+P+"minecraft"
-		Makedir(Gamedir)
+		err := os.MkdirAll(Gamedir,os.ModePerm)
+		if err != nil { logutil.Error("Failed to create game directories",err); os.Exit(1) }
 		return Gamedir
 	case "linux":
 		Gamedir = os.Getenv("HOME")+P+".minecraft"
-		Makedir(Gamedir)
+		err := os.MkdirAll(Gamedir,os.ModePerm)
+		if err != nil { logutil.Error("Failed to create game directories",err); os.Exit(1) }
 		return Gamedir
 	}
-	logutil.Critical("OS not supported.",nil)
+	logutil.Warn("OS not supported.")
+	os.Exit(1)
 	return ""
 }
 
 func Assets() string {
 	Assetsdir = Gamedir+P+"assets"
-	Makedir(Assetsdir)
+	err := os.MkdirAll(Assetsdir,os.ModePerm)
+	if err != nil { logutil.Error("Failed to create game directories",err); os.Exit(1) }
 	return Assetsdir 
 }
 
 func Libraries() string {
 	Librariesdir = Gamedir+P+"libraries"
-	Makedir(Librariesdir)
+	err := os.MkdirAll(Librariesdir,os.ModePerm)
+	if err != nil { logutil.Error("Failed to create game directories",err); os.Exit(1) }
 	return Librariesdir
 }
 
 func Runtimes() string {
 	Runtimesdir = Gamedir+P+"runtime"
-	Makedir(Runtimesdir)
+	err := os.MkdirAll(Runtimesdir,os.ModePerm)
+	if err != nil { logutil.Error("Failed to create game directories",err); os.Exit(1) }
 	return Runtimesdir
 }
 
 func Versions() string {
 	Versionsdir = Gamedir+P+"versions"
-	Makedir(Versionsdir)
+	err := os.MkdirAll(Versionsdir,os.ModePerm)
+	if err != nil { logutil.Error("Failed to create game directories",err); os.Exit(1) }
 	return Versionsdir
 }

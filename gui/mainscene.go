@@ -11,6 +11,8 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/container"
 
+
+	"egreg10us/faultylauncher/launcher/versionmanager"
 	"egreg10us/faultylauncher/util/downloadutil"
 	"egreg10us/faultylauncher/gui/resources"
 	"egreg10us/faultylauncher/gui/elements"
@@ -19,6 +21,13 @@ import (
 )
 
 func mainScene(currentCanvas fyne.Canvas) {
+	if previewProfileVersionType == "Local" && !launcher.OfflineMode {
+		lastUsed := lProfiles.Profiles[lProfiles.LastUsedProfile]
+		lastUsed.LastGameType = versionmanager.GetVersionType(previewProfileVersion)
+		lProfiles.Profiles[lProfiles.LastUsedProfile] = lastUsed
+		lProfiles.SaveToFile()
+		setCurrentProfileProperties()
+	}
 	settingsText := widget.NewLabel("Settings")
 	settingsImg := canvas.NewImageFromResource(theme.SettingsIcon())
 	settingsImg.FillMode = canvas.ImageFillOriginal
@@ -110,6 +119,7 @@ func mainScene(currentCanvas fyne.Canvas) {
 	}
 
 	playButton.OnTapped = func() {
+		launcher.TaskStatus = 0
 		setPlayStatus("Pending")
 		progressMsg.Show()	
 		progress.Show()
@@ -149,9 +159,8 @@ func mainScene(currentCanvas fyne.Canvas) {
 							MainWindow.Hide()
 						case "Exit":
 							MainWindow.Hide()
+							MainApp.Quit()
 							os.Exit(0)
-						case "DoNothing":
-							continue
 						}
 						if exitErr == nil && exitStdout != "" {
 							MainWindow.Show()

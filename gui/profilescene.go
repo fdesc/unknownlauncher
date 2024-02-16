@@ -20,6 +20,7 @@ import (
 )
 
 func listProfiles(currentCanvas fyne.Canvas) {
+	logutil.Info("Listing profiles")
 	var nameUUIDPairs = make(map[string]string)
 	var profileDisplayNames []string
 	for k,v := range lProfiles.Profiles {
@@ -44,12 +45,13 @@ func listProfiles(currentCanvas fyne.Canvas) {
 					profile := lProfiles.Profiles[nameUUIDPairs[label.Text]]
 					editProfile(&profile,nameUUIDPairs[label.Text],profileImage,"Edit Profile",currentCanvas)
 				}),
-				widget.NewToolbarAction(theme.ContentCopyIcon(), func(){
+				widget.NewToolbarAction(theme.ContentCopyIcon(), func() {
+					logutil.Info("Cloning profile with preview name: "+label.Text)
 					profile := lProfiles.Profiles[nameUUIDPairs[label.Text]]
 					profile.LastUsed = time.Now().Format(time.RFC3339)
 					profile.Created = time.Now().Format(time.RFC3339)
 					uuid,err := profilemanager.GenerateProfileUUID()
-					if err != nil { logutil.Error("",err) }
+					if err != nil { return }
 					lProfiles.Profiles[uuid] = profile
 					lProfiles.SaveToFile()
 					listProfiles(currentCanvas)
@@ -68,7 +70,8 @@ func listProfiles(currentCanvas fyne.Canvas) {
 							container.New(
 								layout.NewGridLayoutWithRows(1),
 								widget.NewButton("Cancel",func(){modal.Hide()}),
-								widget.NewButton("Confirm",func(){
+								widget.NewButton("Confirm",func() {
+									logutil.Info("Removing profile")
 									delete(lProfiles.Profiles,nameUUIDPairs[label.Text])
 									lProfiles.SaveToFile()
 									modal.Hide()
@@ -89,6 +92,7 @@ func listProfiles(currentCanvas fyne.Canvas) {
 			pName,_ := profileBind.GetValue(id)
 			lProfiles.LastUsedProfile = nameUUIDPairs[pName]
 			lProfiles.SaveToFile()
+			logutil.Info("Setting last used profile to the profile with UUID: "+nameUUIDPairs[pName])
 			setCurrentProfileProperties()
 			mainScene(currentCanvas)
 		}
@@ -98,13 +102,13 @@ func listProfiles(currentCanvas fyne.Canvas) {
 		o.(*fyne.Container).Objects[0].(*fyne.Container).Objects[0].(*widget.Label).Bind(i.(binding.String))
 	})
 
-	newProfileButton := widget.NewButtonWithIcon("New Profile",theme.ContentAddIcon(),func(){
+	newProfileButton := widget.NewButtonWithIcon("New Profile",theme.ContentAddIcon(),func() {
 		var newProfile = &profilemanager.ProfileProperties{}
 		newProfile.Type = "Profile"
 		newProfile.Created = time.Now().Format(time.RFC3339)
 		newProfile.LastUsed = time.Now().Format(time.RFC3339)
 		newUUID,err := profilemanager.GenerateProfileUUID()
-		if err != nil { logutil.Error("",err) }
+		if err != nil { return }
 		editProfile(newProfile,newUUID,profileImage,"New Profile",currentCanvas)
 	})
 
@@ -114,6 +118,7 @@ func listProfiles(currentCanvas fyne.Canvas) {
 }
 
 func editProfile (profileData *profilemanager.ProfileProperties,pUUID string,pImage *canvas.Image,headingString string,currentCanvas fyne.Canvas) {
+	logutil.Info("Editing profile with UUID: "+pUUID)
 	// Misc elements(decoration)
 	separatorLine := canvas.NewLine(theme.OverlayBackgroundColor())
 	separatorLine.StrokeWidth = 1
@@ -147,6 +152,7 @@ func editProfile (profileData *profilemanager.ProfileProperties,pUUID string,pIm
 	}
 	//
 	saveButton := widget.NewButtonWithIcon("Save",theme.ConfirmIcon(),func(){
+		logutil.Info("Saving profile with UUID: "+pUUID)
 		profileData.Name = nEntry.Text
 		profileData.LastGameVersion = vList.Selected
 		profileData.LastGameType = vType.Selected
@@ -162,9 +168,9 @@ func editProfile (profileData *profilemanager.ProfileProperties,pUUID string,pIm
 		} else {
 			if (wEntry.Text != "" && hEntry.Text != "") {
 				w,err := strconv.Atoi(wEntry.Text)
-				if err != nil { logutil.Error("",err) }
+				if err != nil { logutil.Error("Failed to convert string to int",err) }
 				h,err := strconv.Atoi(hEntry.Text)
-				if err != nil {	logutil.Error("",err) }
+				if err != nil {	logutil.Error("Failed to convert string to int",err) }
 				profileData.Resolution = &profilemanager.ProfileResolution{Width:w,Height:h,Fullscreen:false}
 			}
 		}

@@ -74,19 +74,19 @@ func (DefaultDarkTheme) Icon(n fyne.ThemeIconName) fyne.Resource {
 func (DefaultDarkTheme) Size(s fyne.ThemeSizeName) float32 {
 	switch s {
 	case theme.SizeNameCaptionText:
-		return 15
+		return 14.5
 	case theme.SizeNameInlineIcon:
 		return 18
 	case theme.SizeNamePadding:
 		return 4
 	case theme.SizeNameScrollBar:
-		return 12
+		return 8
 	case theme.SizeNameScrollBarSmall:
-		return 2
+		return 4
 	case theme.SizeNameSeparatorThickness:
 		return 1
 	case theme.SizeNameText:
-		return 15
+		return 14.5
 	case theme.SizeNameInputBorder:
 		return 1.5
 	default:

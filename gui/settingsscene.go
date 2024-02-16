@@ -7,6 +7,7 @@ import (
 	"fyne.io/fyne/v2/container"
 
 	"egreg10us/faultylauncher/gui/resources"
+	"egreg10us/faultylauncher/util/logutil"
 )
 
 func settingsScene(currentCanvas fyne.Canvas) {
@@ -17,8 +18,10 @@ func settingsScene(currentCanvas fyne.Canvas) {
 	appearanceTheme := widget.NewRadioGroup([]string{"Dark","Light"},func(option string){
 		switch option {
 		case "Dark":
+			logutil.Info("Switching to dark theme for preview")
 			MainApp.Settings().SetTheme(&resources.DefaultDarkTheme{})
 		case "Light":
+			logutil.Info("Switching to light theme for preview")
 			MainApp.Settings().SetTheme(&resources.DefaultLightTheme{})
 		}
 	})
@@ -54,10 +57,12 @@ func settingsScene(currentCanvas fyne.Canvas) {
 		ReloadSettings()
 		mainScene(currentCanvas)
 	})
-	closeButton := widget.NewButton("Cancel",func(){
+	closeButton := widget.NewButton("Cancel",func() {
+		logutil.Info("Reverting preview actions settings are not getting saved")
 		ReloadSettings()
 		mainScene(currentCanvas)
 	})
+	logButton := widget.NewButton("Show launcher logs",func(){ go viewLauncherLogs() })
 	currentCanvas.SetContent(
 		container.NewVBox(
 			heading,
@@ -71,6 +76,7 @@ func settingsScene(currentCanvas fyne.Canvas) {
 				container.New(&MLayout{},launchruleSelection),
 			),
 			fileValidationCheck,
+			container.NewPadded(container.New(&MLayout{},logButton)),
 			layout.NewSpacer(),
 			container.NewPadded(container.NewHBox(layout.NewSpacer(), closeButton, saveButton)),
 		),

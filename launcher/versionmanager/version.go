@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/tidwall/gjson"
+
 	"egreg10us/faultylauncher/util/gamepath"
 	"egreg10us/faultylauncher/util/logutil"
 	"egreg10us/faultylauncher/util/downloadutil"
@@ -33,14 +34,34 @@ func SelectVersion(versionType,version string) (string,error) {
 func GetVersionArguments(versiondata *gjson.Result) error {
 	var data []byte
 	os.MkdirAll(filepath.Join(gamepath.Assetsdir,"args"),os.ModePerm)
-	os.Create(filepath.Join(gamepath.Assetsdir,"args",versiondata.Get("id").String()+".json"))
+	file,err := os.Create(filepath.Join(gamepath.Assetsdir,"args",versiondata.Get("id").String()+".json"))
+	if err != nil { logutil.Error("Failed to create arguments to save files",err); return err }
 	if versiondata.Get("minecraftArguments").Exists() {
-		data = []byte(`{"assets":`+versiondata.Get("assets").Raw+`,"id":`+versiondata.Get("id").Raw+`,"mainclass":`+versiondata.Get("mainClass").Raw+`,"libraries":`+versiondata.Get("libraries").Raw+`,"arguments":`+versiondata.Get("minecraftArguments").Raw+`}`)
+		data = []byte(
+			`{`+
+			`"jvmtype":`+versiondata.Get("javaVersion.component").Raw+
+			`,"assets":`+versiondata.Get("assets").Raw+
+			`,"id":`+versiondata.Get("id").Raw+
+			`,"mainclass":`+versiondata.Get("mainClass").Raw+
+			`,"libraries":`+versiondata.Get("libraries").Raw+
+			`,"arguments":`+versiondata.Get("minecraftArguments").Raw+
+			`}`,
+		)
 	} else {
-		data = []byte(`{"assets":`+versiondata.Get("assets").Raw+`,"id":`+versiondata.Get("id").Raw+`,"mainclass":`+versiondata.Get("mainClass").Raw+`,"libraries":`+versiondata.Get("libraries").Raw+`,"arguments":"default"}`)
+		data = []byte(
+			`{`+
+			`"jvmtype":`+versiondata.Get("javaVersion.component").Raw+
+			`,"assets":`+versiondata.Get("assets").Raw+
+			`,"id":`+versiondata.Get("id").Raw+
+			`,"mainclass":`+versiondata.Get("mainClass").Raw+
+			`,"libraries":`+versiondata.Get("libraries").Raw+
+			`,"arguments":"default"`+
+			`}`,
+		)
 	}
-	err := os.WriteFile(filepath.Join(gamepath.Assetsdir,"args",versiondata.Get("id").String()+".json"),data,os.ModePerm)
-	if err != nil { logutil.Error("Failed to save version data",err); return err }
+	defer file.Close()
+	_,err = file.Write(data)
+	if err != nil { logutil.Error("Failed to write arguments data to file",err); return err }
 	return err
 }
 
@@ -70,7 +91,6 @@ func GetVersionList() error {
 	return err
 }
 
-// TODO: do not save local versions to profiles
 func searchLocalVersions() error {
 	var names []string
 	dirEntry,err := os.ReadDir(filepath.Join(gamepath.Assetsdir,"args"))
@@ -86,6 +106,19 @@ func searchLocalVersions() error {
 		}
 	}
 	return err
+}
+
+func GetVersionType(version string) string {
+	var vertype string
+	jsonBytes,err := downloadutil.GetData(versionMeta); if err != nil { logutil.Error("Failed to get data for version",err); return "" }
+	gjson.Get(string(jsonBytes),"versions").ForEach(func(key, value gjson.Result) bool {
+		if value.Get("id").String() == version {
+			vertype = value.Get("type").String()
+			return true
+		}
+		return true
+	})
+	return vertype
 }
 
 func ParseVersion(url string) (gjson.Result,error) {

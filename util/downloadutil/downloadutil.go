@@ -45,7 +45,7 @@ func DownloadMultiple(urlSlice,pathSlice []string) {
 			defer receivedWg.Done()
 			if _,err := os.Stat(path); err == nil { return err }
 			err := os.MkdirAll(filepath.Dir(path),os.ModePerm); if err != nil { logutil.Error("Failed to create directory",err); return err }
-			out, err := os.Create(path); if err != nil { logutil.Critical("Failed to create file",err); return err }
+			out, err := os.Create(path); if err != nil { logutil.Error("Failed to create file",err); return err }
 			defer out.Close()
 			time.Sleep(150 * time.Millisecond)
 			resp, err := client.Get(url)

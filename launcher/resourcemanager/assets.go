@@ -80,7 +80,7 @@ func legacyAssets(pathSlice []string,fileNameSlice []string,assetid string) erro
 		file,err := os.Open(pathSlice[i])
 		if err != nil { logutil.Error("Failed to open file",err); return err }
 		defer file.Close()
-		err = gamepath.Makedir(filepath.Dir(filepath.Join(targetDir,fileNameSlice[i])))
+		err = os.MkdirAll(filepath.Join(targetDir,fileNameSlice[i]),os.ModePerm)
 		if err != nil { logutil.Error("Failed to create directory",err); return err }
 		destination,err := os.Create(filepath.Join(targetDir,fileNameSlice[i]))
 		if err != nil { logutil.Error("Failed to create file",err); return err }
