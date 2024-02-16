@@ -6,8 +6,8 @@ import (
 	"io"
 	"os"
 
-	"egreg10us/faultylauncher/util/logutil"
-	"egreg10us/faultylauncher/util/gamepath"
+	"egreg10us/unknownlauncher/util/logutil"
+	"egreg10us/unknownlauncher/util/gamepath"
 )
 
 type AccountsRoot struct {

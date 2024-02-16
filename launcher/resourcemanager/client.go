@@ -5,9 +5,9 @@ import (
 	"os"
 
 	"github.com/tidwall/gjson"
-	"egreg10us/faultylauncher/util/logutil"
-	"egreg10us/faultylauncher/util/gamepath"
-	"egreg10us/faultylauncher/util/downloadutil"
+	"egreg10us/unknownlauncher/util/logutil"
+	"egreg10us/unknownlauncher/util/gamepath"
+	"egreg10us/unknownlauncher/util/downloadutil"
 )
 
 func Client(versiondata *gjson.Result,version string) error {

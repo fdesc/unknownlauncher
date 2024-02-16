@@ -14,11 +14,11 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"fyne.io/fyne/v2/container"
 
-	"egreg10us/faultylauncher/auth"
-	"egreg10us/faultylauncher/launcher"
-	"egreg10us/faultylauncher/gui/resources"
-	"egreg10us/faultylauncher/launcher/profilemanager"
-	"egreg10us/faultylauncher/util/logutil"
+	"egreg10us/unknownlauncher/auth"
+	"egreg10us/unknownlauncher/launcher"
+	"egreg10us/unknownlauncher/gui/resources"
+	"egreg10us/unknownlauncher/launcher/profilemanager"
+	"egreg10us/unknownlauncher/util/logutil"
 )
 
 var previewAccountSkin 		image.Image 

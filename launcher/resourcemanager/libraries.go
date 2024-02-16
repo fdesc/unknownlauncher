@@ -11,9 +11,9 @@ import (
 	"io"
 
 	"github.com/tidwall/gjson"
-	"egreg10us/faultylauncher/util/downloadutil"
-	"egreg10us/faultylauncher/util/gamepath"
-	"egreg10us/faultylauncher/util/logutil"
+	"egreg10us/unknownlauncher/util/downloadutil"
+	"egreg10us/unknownlauncher/util/gamepath"
+	"egreg10us/unknownlauncher/util/logutil"
 )
 
 var (

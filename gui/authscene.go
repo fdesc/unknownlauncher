@@ -9,8 +9,8 @@ import(
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
 
-	"egreg10us/faultylauncher/auth"
-	"egreg10us/faultylauncher/util/logutil"
+	"egreg10us/unknownlauncher/auth"
+	"egreg10us/unknownlauncher/util/logutil"
 )
 
 func NewAccountScene(currentCanvas fyne.Canvas) {

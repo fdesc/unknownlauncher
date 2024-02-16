@@ -13,8 +13,8 @@ import(
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/container"
 
-	"egreg10us/faultylauncher/util/logutil"
-	"egreg10us/faultylauncher/launcher"
+	"egreg10us/unknownlauncher/util/logutil"
+	"egreg10us/unknownlauncher/launcher"
 )
 
 func showGameLog(logPath,gameStdout string,gameStderr error) {

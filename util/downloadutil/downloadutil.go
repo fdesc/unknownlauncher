@@ -9,7 +9,7 @@ import (
 	"os"
 	"io"
 
-	"egreg10us/faultylauncher/util/logutil"
+	"egreg10us/unknownlauncher/util/logutil"
 )
 
 var client = http.Client{Timeout: 120 * time.Second}

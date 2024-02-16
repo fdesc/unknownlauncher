@@ -4,13 +4,13 @@ import (
 	"path/filepath"
 	"time"
 
-	"egreg10us/faultylauncher/gui"
-	"egreg10us/faultylauncher/auth"
-	"egreg10us/faultylauncher/launcher"
-	"egreg10us/faultylauncher/launcher/profilemanager"
-	"egreg10us/faultylauncher/launcher/versionmanager"
-	"egreg10us/faultylauncher/util/gamepath"
-	"egreg10us/faultylauncher/util/logutil"
+	"egreg10us/unknownlauncher/gui"
+	"egreg10us/unknownlauncher/auth"
+	"egreg10us/unknownlauncher/launcher"
+	"egreg10us/unknownlauncher/launcher/profilemanager"
+	"egreg10us/unknownlauncher/launcher/versionmanager"
+	"egreg10us/unknownlauncher/util/gamepath"
+	"egreg10us/unknownlauncher/util/logutil"
 )
 
 const appName 	 = "unknownLauncher"

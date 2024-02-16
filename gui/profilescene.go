@@ -12,11 +12,11 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
 
-	"egreg10us/faultylauncher/launcher/versionmanager"
-	"egreg10us/faultylauncher/launcher/profilemanager"
-	"egreg10us/faultylauncher/gui/resources"
-	"egreg10us/faultylauncher/gui/elements"
-	"egreg10us/faultylauncher/util/logutil"
+	"egreg10us/unknownlauncher/launcher/versionmanager"
+	"egreg10us/unknownlauncher/launcher/profilemanager"
+	"egreg10us/unknownlauncher/gui/resources"
+	"egreg10us/unknownlauncher/gui/elements"
+	"egreg10us/unknownlauncher/util/logutil"
 )
 
 func listProfiles(currentCanvas fyne.Canvas) {

@@ -1,6 +1,6 @@
 package resourcemanager
 
-import "egreg10us/faultylauncher/util/gamepath"
+import "egreg10us/unknownlauncher/util/gamepath"
 
 var (
 	identifier string
