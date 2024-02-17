@@ -42,4 +42,5 @@ func main() {
 	gui.NewAccountScene(mainCanvas)
 	gui.MainWindow.SetTitle(appName+": "+appVersion)
 	gui.MainWindow.ShowAndRun()
+	close(logutil.LogChannel)
 }
