@@ -12,12 +12,12 @@ import (
 	"fyne.io/fyne/v2/container"
 
 
-	"egreg10us/unknownlauncher/launcher/versionmanager"
-	"egreg10us/unknownlauncher/util/downloadutil"
-	"egreg10us/unknownlauncher/gui/resources"
-	"egreg10us/unknownlauncher/gui/elements"
-	"egreg10us/unknownlauncher/launcher"
-	"egreg10us/unknownlauncher/auth"
+	"fdesc/unknownlauncher/launcher/versionmanager"
+	"fdesc/unknownlauncher/util/downloadutil"
+	"fdesc/unknownlauncher/gui/resources"
+	"fdesc/unknownlauncher/gui/elements"
+	"fdesc/unknownlauncher/launcher"
+	"fdesc/unknownlauncher/auth"
 )
 
 func mainScene(currentCanvas fyne.Canvas) {

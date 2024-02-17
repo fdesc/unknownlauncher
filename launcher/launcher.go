@@ -14,13 +14,13 @@ import (
 	"os"
 
 	"github.com/tidwall/gjson"
-	"egreg10us/unknownlauncher/auth"
-	"egreg10us/unknownlauncher/launcher/profilemanager"
-	"egreg10us/unknownlauncher/launcher/versionmanager"
-	"egreg10us/unknownlauncher/launcher/resourcemanager"
-	"egreg10us/unknownlauncher/util/downloadutil"
-	"egreg10us/unknownlauncher/util/gamepath"
-	"egreg10us/unknownlauncher/util/logutil"
+	"fdesc/unknownlauncher/auth"
+	"fdesc/unknownlauncher/launcher/profilemanager"
+	"fdesc/unknownlauncher/launcher/versionmanager"
+	"fdesc/unknownlauncher/launcher/resourcemanager"
+	"fdesc/unknownlauncher/util/downloadutil"
+	"fdesc/unknownlauncher/util/gamepath"
+	"fdesc/unknownlauncher/util/logutil"
 )
 
 var OfflineMode 	bool	

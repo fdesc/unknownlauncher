@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"egreg10us/unknownlauncher/util/logutil"
+	"fdesc/unknownlauncher/util/logutil"
 )
 
 type OfflineProfileResponse struct {

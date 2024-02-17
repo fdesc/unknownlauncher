@@ -10,9 +10,9 @@ import (
 	"io"
 
 	"github.com/google/uuid"
-	"egreg10us/unknownlauncher/launcher/versionmanager"
-	"egreg10us/unknownlauncher/util/logutil"
-	"egreg10us/unknownlauncher/util/gamepath"
+	"fdesc/unknownlauncher/launcher/versionmanager"
+	"fdesc/unknownlauncher/util/logutil"
+	"fdesc/unknownlauncher/util/gamepath"
 )
 
 type ProfilesRoot struct {

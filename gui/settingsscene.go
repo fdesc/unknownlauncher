@@ -6,8 +6,8 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/container"
 
-	"egreg10us/unknownlauncher/gui/resources"
-	"egreg10us/unknownlauncher/util/logutil"
+	"fdesc/unknownlauncher/gui/resources"
+	"fdesc/unknownlauncher/util/logutil"
 )
 
 func settingsScene(currentCanvas fyne.Canvas) {

@@ -6,9 +6,9 @@ import (
 
 	"github.com/tidwall/gjson"
 
-	"egreg10us/unknownlauncher/util/gamepath"
-	"egreg10us/unknownlauncher/util/logutil"
-	"egreg10us/unknownlauncher/util/downloadutil"
+	"fdesc/unknownlauncher/util/gamepath"
+	"fdesc/unknownlauncher/util/logutil"
+	"fdesc/unknownlauncher/util/downloadutil"
 )
 
 const versionMeta string = `https://launchermeta.mojang.com/mc/game/version_manifest_v2.json`

@@ -4,7 +4,7 @@ import (
 	"runtime"
 	"os"
 
-	"egreg10us/unknownlauncher/util/logutil"
+	"fdesc/unknownlauncher/util/logutil"
 )
 
 var SeparateInstallation = false

@@ -6,7 +6,7 @@ import (
 	"golang.org/x/image/draw"
 	"image/png"
 
-	"egreg10us/unknownlauncher/util/downloadutil"
+	"fdesc/unknownlauncher/util/downloadutil"
 )
 
 type SubImager interface {

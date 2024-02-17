@@ -8,7 +8,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/sqweek/dialog"
-	"egreg10us/unknownlauncher/util/logutil"
+	"fdesc/unknownlauncher/util/logutil"
 )
 
 func NewProfileNameElem(pName string) (*widget.Label,*widget.Entry) {

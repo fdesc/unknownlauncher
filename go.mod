@@ -1,4 +1,4 @@
-module egreg10us/unknownlauncher
+module fdesc/unknownlauncher
 
 go 1.21.1
 

@@ -11,9 +11,9 @@ import (
 
 	"github.com/ulikunitz/xz/lzma"
 	"github.com/tidwall/gjson"
-	"egreg10us/unknownlauncher/util/downloadutil"
-	"egreg10us/unknownlauncher/util/gamepath"
-	"egreg10us/unknownlauncher/util/logutil"
+	"fdesc/unknownlauncher/util/downloadutil"
+	"fdesc/unknownlauncher/util/gamepath"
+	"fdesc/unknownlauncher/util/logutil"
 )
 
 func Runtimes(versiondata *gjson.Result) (string,error) {
