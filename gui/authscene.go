@@ -115,7 +115,6 @@ func offlineAuthScene(currentCanvas fyne.Canvas) {
 }
 
 func listAccounts(currentCanvas fyne.Canvas) {
-	logutil.Info("Listing accounts")
 	var accountsData = make(map[string]auth.AccountProperties)
 	var displayNameSlices []string
         heading := widget.NewRichTextFromMarkdown("# Select an account")

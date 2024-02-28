@@ -20,7 +20,6 @@ import (
 )
 
 func listProfiles(currentCanvas fyne.Canvas) {
-	logutil.Info("Listing profiles")
 	var nameUUIDPairs = make(map[string]string)
 	var profileDisplayNames []string
 	for k,v := range lProfiles.Profiles {
