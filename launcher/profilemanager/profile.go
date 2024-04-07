@@ -120,6 +120,15 @@ func (pRoot *ProfilesRoot) SaveToFile() error {
 	return err
 }
 
+func (pRoot *ProfilesRoot) ProfileNameExists(name string,ptype string) bool {
+	for _,v := range pRoot.Profiles {
+		if v.Name == name && v.Type == ptype {
+			return true
+		}
+	}
+	return false
+}
+
 func GetProfileUUID(pData *map[string]ProfileProperties,profileInfo string) string {
 	var uuid string
 	for k,v := range *pData {

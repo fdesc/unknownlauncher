@@ -46,14 +46,6 @@ func ReadAccountsRoot() (AccountsRoot,error) {
 	return readAccountsRoot,err
 }
 
-func SaveOfflineAccount(name,uuid string) AccountProperties {
-	return AccountProperties {
-		Name: name,
-		AccountType: "offline",
-		AccountUUID: uuid,
-	}
-}
-
 func (aRoot *AccountsRoot) SaveToFile() error {
 	jsonData,err := json.MarshalIndent(aRoot,"","  ")
 	if err != nil { return err }

@@ -1,4 +1,4 @@
-package gui
+package elements
 
 import (
 	"fyne.io/fyne/v2"
@@ -6,9 +6,9 @@ import (
 	"fyne.io/fyne/v2/layout"
 )
 
-type MLayout struct{}
+type HalfLayout struct{}
 
-func (M *MLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
+func (M *HalfLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
 	minSize := fyne.NewSize(0,0)
 	padding := theme.Padding()
 	for _, o := range objects {
@@ -20,7 +20,7 @@ func (M *MLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
 	return minSize
 }
 
-func (M *MLayout) isSpacer(o fyne.CanvasObject) bool {
+func (M *HalfLayout) isSpacer(o fyne.CanvasObject) bool {
 	if !o.Visible() {
 		return false
 	}
@@ -33,7 +33,7 @@ func (M *MLayout) isSpacer(o fyne.CanvasObject) bool {
 	return spacer.ExpandHorizontal()
 }
 
-func (M *MLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
+func (M *HalfLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
 	spacers := 0
 	visibleObjects := 0
 	total := float32(0)

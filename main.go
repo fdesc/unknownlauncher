@@ -13,7 +13,7 @@ import (
 	"fdesc/unknownlauncher/util/logutil"
 )
 
-const appName 	 = "unknownLauncher"
+const appName    = "unknownLauncher"
 const appVersion = "Alpha 0.1"
 
 // TODO: use zstd compression for launcher logs
@@ -25,22 +25,24 @@ func main() {
 	logutil.Info("Starting application... the time is "+logutil.CurrentLogTime+" | "+time.Now().Format("15.04.05"))
 	versionmanager.GetVersionList()
 	launcher.GetLauncherContent()
+	settings,err := launcher.ReadLauncherSettings()
+	if err != nil {
+		logutil.Error("Failed to read settings",err)
+	}
 	profilesData,err := profilemanager.ReadProfilesRoot()
-	if err != nil { 
+	if err != nil {
 		logutil.Error("Failed to read profiles root",err)
-		gui.ErrorScene(err)
+		//gui.ErrorScene(err)
 	}
 	authData,err := auth.ReadAccountsRoot()
-	if err != nil { 
+	if err != nil {
 		logutil.Error("Failed to read accounts root",err)
-		gui.ErrorScene(err)
+		//gui.ErrorScene(err)
 	}
-	gui.ReloadSettings()
-	gui.SetAccountsRoot(&authData)
+	gui.SetSettings(settings)
 	gui.SetProfilesRoot(&profilesData)
-	mainCanvas := gui.MainWindow.Canvas()
-	gui.NewAccountScene(mainCanvas)
-	gui.MainWindow.SetTitle(appName+": "+appVersion)
-	gui.MainWindow.ShowAndRun()
-	close(logutil.LogChannel)
+	gui.SetAccountsRoot(&authData)
+	g := gui.NewGui()
+	g.SetProperties()
+	g.Start(appName+":"+appVersion)
 }

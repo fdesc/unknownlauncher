@@ -1,10 +1,12 @@
 package auth
 
 import (
-	"encoding/hex"
+	"image"
 	"crypto/md5"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
@@ -33,7 +35,7 @@ type UsernameResponse struct {
 	Name string `json:"name"`
 }
 
-type ProfileData struct {  // use the other struct if there are matching in msauth
+type ProfileData struct {
 	ID         string `json:"id"`
 	Name       string `json:"name"`
 	Properties []struct {
@@ -48,8 +50,30 @@ func InitializeClient() *http.Client {
 	return &http.Client{Timeout: 30*time.Second}
 }
 
+func (aRoot *AccountsRoot) SaveOfflineAccount(username string) (image.Image,error) {
+	skinsrc,uuid := PerformOfflineAuthentication(username)
+	if uuid == "" {
+		return nil,errors.New("Failed to get UUID please wait and try again later")
+	}
+	if aRoot.Accounts == nil {
+		aRoot.Accounts = make(map[string]AccountProperties)
+	}
+	aRoot.Accounts[uuid] = AccountProperties{
+		Name: username,
+		AccountType: "offline",
+		AccountUUID: uuid,
+	}
+	aRoot.LastUsed = uuid
+	aRoot.SaveToFile()
+	logutil.Info("Saved offline account with name: "+username)
+	if skinsrc == "" {
+		return nil,nil
+	}
+	return CropSkinImage(skinsrc),nil
+}
+
 func PerformOfflineAuthentication(username string) (string,string) {
-	client := InitializeClient()	
+	client := InitializeClient()
 	uInformation,uStatus := GetUUIDFromUsername(client,username)
 	if uStatus == 429 {
 		client.CloseIdleConnections()

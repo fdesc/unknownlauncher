@@ -1,5 +1,4 @@
 package elements
-
 import(
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
@@ -17,7 +16,7 @@ func NewSquareButtonWithIcon(label *widget.Label,icon *canvas.Image,emptyButton 
 				nil,
 				nil,
 				nil,
-				nil,				
+				nil,
 				container.NewPadded(
 					container.NewBorder(
 						container.NewCenter(
@@ -46,11 +45,11 @@ func NewRectangleButtonWithIcon(headingLabel *widget.Label,contentLabel *widget.
 				nil,
 				nil,
 				nil,
-				nil,	
+				nil,
 				container.NewPadded(
 					container.NewBorder(
 						nil,
-						nil,	
+						nil,
 						container.NewCenter(
 							container.NewPadded(
 								container.New(

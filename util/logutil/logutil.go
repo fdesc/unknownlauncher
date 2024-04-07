@@ -8,7 +8,6 @@ import (
 )
 
 var CurrentLogTime = time.Now().Format("2006-01-02")
-var LogChannel = make(chan string)
 var CurrentLogPath string
 
 type Loglevel struct {
@@ -18,16 +17,6 @@ type Loglevel struct {
 
 func stdoutPrinter(msg string,target *os.File) {
 	Save(msg)
-	go func() {
-		for {
-			select {
-			case <-LogChannel:
-			default:
-				LogChannel <- msg+"\n"
-				return
-			}
-		}
-	}()
 	writer := bufio.NewWriter(target)
 	defer writer.Flush()
 	writer.WriteString(msg+"\n")

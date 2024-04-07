@@ -69,7 +69,7 @@ func ReadLauncherSettings() (*LauncherSettings,error) {
 		if os.IsNotExist(err) {
 			logutil.Info("No launcher_settings file. Creating default settings file")
 			file,err = os.Create(filepath.Join(gamepath.Gamedir,"launcher_settings"))
-			if err != nil { 
+			if err != nil {
 				logutil.Error("Failed to create launcher settings file",err)
 				return &LauncherSettings{},err
 			}
@@ -91,15 +91,13 @@ func ReadLauncherSettings() (*LauncherSettings,error) {
 		case "Rule":
 			settings.LaunchRule = currentLineSplitted[1]
 		case "DisableValidation":
-			parsed,err := strconv.ParseBool(currentLineSplitted[1]) 
+			parsed,err := strconv.ParseBool(currentLineSplitted[1])
 			if err != nil { continue }
 			settings.DisableValidation = parsed
 		default:
-			continue
+			os.Remove(filepath.Join(gamepath.Gamedir,"launcher_settings"))
+			return ReadLauncherSettings()
 		}
-	}
-	if settings.LauncherTheme == "" {
-		return ReadLauncherSettings()
 	}
 	resourcemanager.DisableValidation = settings.DisableValidation
 	return settings,err
