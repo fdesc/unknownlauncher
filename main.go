@@ -16,8 +16,8 @@ import (
 const appName    = "unknownLauncher"
 const appVersion = "Alpha 0.1"
 
+// TODO: gui rework: add crash handler
 // TODO: use zstd compression for launcher logs
-// TODO: use maps instead of slices in function generateArguments at launcher package
 
 func main() {
 	gamepath.Reload()
