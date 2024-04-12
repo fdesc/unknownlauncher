@@ -94,7 +94,7 @@ func GetVersionList() error {
 func searchLocalVersions() error {
 	var names []string
 	dirEntry,err := os.ReadDir(filepath.Join(gamepath.Assetsdir,"args"))
-	if err != nil { 
+	if err != nil {
 		logutil.Error("Failed to read directory contents",err)
 		return err
 	}
@@ -110,7 +110,8 @@ func searchLocalVersions() error {
 
 func GetVersionType(version string) string {
 	var vertype string
-	jsonBytes,err := downloadutil.GetData(versionMeta); if err != nil { logutil.Error("Failed to get data for version",err); return "" }
+	jsonBytes,err := downloadutil.GetData(versionMeta)
+	if err != nil { logutil.Error("Failed to get data for version",err); return "" }
 	gjson.Get(string(jsonBytes),"versions").ForEach(func(key, value gjson.Result) bool {
 		if value.Get("id").String() == version {
 			vertype = value.Get("type").String()
@@ -119,6 +120,19 @@ func GetVersionType(version string) string {
 		return true
 	})
 	return vertype
+}
+
+func SortVersionTypes(slice []string) []string {
+	order := map[int]string{
+		0:"release",
+		1:"snapshot",
+		2:"old_beta",
+		3:"old_alpha",
+	}
+	for i := range slice {
+		slice[i] = order[i]
+	}
+	return slice
 }
 
 func ParseVersion(url string) (gjson.Result,error) {

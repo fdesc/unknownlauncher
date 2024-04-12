@@ -2,15 +2,12 @@ package launcher
 
 import (
 	"path/filepath"
-	"image/jpeg"
 	"os/exec"
 	"strconv"
 	"strings"
 	"runtime"
 	"regexp"
 	"bufio"
-	"bytes"
-	"image"
 	"os"
 
 	"github.com/tidwall/gjson"
@@ -23,16 +20,30 @@ import (
 	"fdesc/unknownlauncher/util/logutil"
 )
 
-var OfflineMode 	bool	
-var ContentMessage 	string
+var OfflineMode         bool
+var ContentMessage      string
 var ContentReadMoreLink string
-var ContentImage 	image.Image
-var TaskStatus	 	int	   // 0 = no tasks, -1 = running task finished, >= 1 = a task is running
+var ContentImageLink    string
+var TaskStatus          int         // 0 = no tasks, -1 = running task finished, >= 1 = a task is running
 
 type LauncherSettings struct {
-	LauncherTheme 	  string
-	LaunchRule 	  string
+	LauncherTheme     string
+	LaunchRule        string
 	DisableValidation bool
+}
+
+type LaunchTask struct {
+	Profile     *profilemanager.ProfileProperties
+	Account     *auth.AccountProperties
+	JavaPath    string
+	ClassPath   string
+	MainClass   string
+	NativesPath string
+	LogPath     string
+	AssetID     string
+        LibsPath    []string
+	JavaArgs    []string
+	GameArgs    []string
 }
 
 func GetLauncherContent() {
@@ -50,9 +61,7 @@ func GetLauncherContent() {
 		if value.Get("category").String() == "Minecraft: Java Edition" {
 			ContentMessage = value.Get("text").String()
 			ContentReadMoreLink = value.Get("readMoreLink").String()
-			imageData,err := downloadutil.GetData(launcherContentMeta+value.Get("playPageImage").Get("url").String())
-			if err != nil { logutil.Error("Failed to get version preview image",err); }
-			ContentImage,_ = jpeg.Decode(bytes.NewReader(imageData))
+			ContentImageLink = launcherContentMeta+value.Get("playPageImage").Get("url").String()
 		} else {
 			return true
 		}
@@ -156,92 +165,202 @@ func cleanDuplicateNatives() {
 	}
 }
 
-func offlineTask(accountData *auth.AccountProperties,profileData *profilemanager.ProfileProperties) (error,string,string) {
-	var err error
-	var runtimesPath string
-	content,err := os.ReadFile(filepath.Join(gamepath.Assetsdir,"args",profileData.LastGameVersion+".json"))
-	if err != nil { logutil.Error("Failed to read arguments for version",err); return err,"","" }
-	arguments := gjson.Parse(string(content))
-	versionId := arguments.Get("id").String()
-	jvmType := arguments.Get("jvmtype").String()
-	if profileData.SeparateInstallation {
-		gamepath.SeparateInstallation = true
-		gamepath.Gamedir = profileData.GameDirectory
-		gamepath.Reload()
-	}
-	cleanDuplicateNatives()
-	if profileData.JavaDirectory != "" {
-		runtimesPath = profileData.JavaDirectory
-	} else {
-		runtimesPath = filepath.Join(gamepath.Runtimesdir,jvmType)
-	}
-	librariesPath,nativesPath := resourcemanager.Libraries(versionId,&arguments) 
-	resourcemanager.CleanLibraryList()
-	finalCommand,logPath := generateArguments(accountData,profileData,&arguments,runtimesPath,nativesPath,"",librariesPath)
-	stdout,err := finalCommand.CombinedOutput()
-	logutil.Info("Command output is"+"\n"+string(stdout))
-	gamepath.SeparateInstallation = false
-	gamepath.Reload()
-	if err != nil {
-		logutil.Error("Stderr of the command is",err)
-		return err,string(stdout),logPath
-	}
-	return err,string(stdout),logPath
-}
-
-func NewLaunchTask(accountData *auth.AccountProperties,profileData *profilemanager.ProfileProperties) (error,string,string) {
-	TaskStatus++
-	logutil.Info("Started job for version "+profileData.LastGameVersion+" as user "+accountData.Name)
-	if OfflineMode {
-		return offlineTask(accountData,profileData)
-	}
-	var err error
-	var runtimesPath string
-	versionUrl,err := versionmanager.SelectVersion(profileData.LastGameType,profileData.LastGameVersion)
-	if err != nil { return err,"","" }
-	versionData,err := versionmanager.ParseVersion(versionUrl)
-	if err != nil { return err,"","" }
+func (t *LaunchTask) Prepare() error {
+	logutil.Info("Started job for version "+t.Profile.LastVersion()+" as user "+t.Account.Name)
+	metaUrl,err := versionmanager.SelectVersion(t.Profile.LastType(),t.Profile.LastVersion())
+	if err != nil { return err }
+	versionData,err := versionmanager.ParseVersion(metaUrl)
+	if err != nil { return err }
 	err = versionmanager.GetVersionArguments(&versionData)
-	if err != nil { return err,"","" }
-	content,err := os.ReadFile(filepath.Join(gamepath.Assetsdir,"args",profileData.LastGameVersion+".json"))
-	if err != nil { logutil.Error("Failed to read arguments for version",err); return err,"","" }
-	arguments := gjson.Parse(string(content))
-	versionId := arguments.Get("id").String()
-	jvmType := arguments.Get("jvmtype").String()
-	if profileData.SeparateInstallation {
+	if err != nil { return err }
+	content,err := os.ReadFile(filepath.Join(gamepath.Assetsdir,"args",t.Profile.LastVersion()+".json"))
+	if err != nil { logutil.Error("Failed to read version arguments file",err); return err }
+	argsdata := gjson.Parse(string(content))
+	versionId := argsdata.Get("id").String()
+	jvmType := argsdata.Get("jvmtype").String()
+	t.AssetID = argsdata.Get("assets").String()
+	t.MainClass = argsdata.Get("mainclass").String()
+	t.GameArgs = strings.Split(argsdata.Get("arguments").String()," ")
+	if t.Profile.SeparateInstallation {
 		gamepath.SeparateInstallation = true
-		gamepath.Gamedir = profileData.GameDirectory
+		gamepath.Gamedir = t.Profile.GameDirectory
 		gamepath.Reload()
 	}
 	cleanDuplicateNatives()
 	err = resourcemanager.Client(&versionData,versionId)
-	if err != nil { return err,"","" }
-	if profileData.JavaDirectory != "" {
-		runtimesPath = profileData.JavaDirectory
+	if err != nil { return err }
+	if t.Profile.JavaDirectory != "" {
+		t.JavaPath = t.Profile.JavaDirectory
 	} else if _,err := os.Stat(filepath.Join(gamepath.Runtimesdir,jvmType)); err != nil {
-		runtimesPath,err = resourcemanager.Runtimes(&versionData)
+		var err error
+		t.JavaPath,err = resourcemanager.Runtimes(&versionData)
+		if err != nil { return err }
 	} else {
-		runtimesPath = filepath.Join(gamepath.Runtimesdir,jvmType)
+		t.JavaPath = filepath.Join(gamepath.Runtimesdir,jvmType)
 	}
-	if err != nil { return err,"","" }
 	err = resourcemanager.AssetIndex(resourcemanager.GetAssetProperties(&versionData))
-	if err != nil { return err,"","" }
+	if err != nil { return err }
 	assetsData,err := resourcemanager.ParseAssets()
-	if err != nil { return err,"","" }
+	if err != nil { return err }
 	resourcemanager.Assets(&assetsData)
-	logConfigPath := resourcemanager.Log4JConfig(&versionData)
-	librariesPath,nativesPath := resourcemanager.Libraries(versionId,&arguments) 
+	t.LogPath = resourcemanager.Log4JConfig(&versionData)
+	t.LibsPath,t.NativesPath = resourcemanager.Libraries(versionId,&argsdata)
 	resourcemanager.CleanLibraryList()
-	finalCommand,logPath := generateArguments(accountData,profileData,&arguments,runtimesPath,nativesPath,logConfigPath,librariesPath)
-	stdout,err := finalCommand.CombinedOutput()
-	logutil.Info("Command output is"+"\n"+string(stdout))
+	return err
+}
+
+func (t *LaunchTask) CompleteArguments() (*exec.Cmd) {
+	t.buildClassPath()
+	t.buildGameArguments()
+	t.buildJvmArgs()
+	os.Chdir(gamepath.Gamedir)
+	logutil.Info("Java path is "+t.JavaPath)
+	previewArgs := make([]string,len(t.JavaArgs))
+	copy(previewArgs,t.JavaArgs)
+	for i := range previewArgs {
+		switch previewArgs[i] {
+		case "-cp":
+			if runtime.GOOS == "windows" {
+				previewArgs[i+1] = strings.Replace(previewArgs[i+1],";","\n | ",len(previewArgs[i+1]))
+			} else {
+				previewArgs[i+1] = strings.Replace(previewArgs[i+1],":","\n | ",len(previewArgs[i+1]))
+			}
+		case "--accessToken":
+			previewArgs[i+1] = "HIDDEN"
+		case "--session":
+			previewArgs[i+1] = "HIDDEN"
+		default:
+			continue
+		}
+	}
+	logutil.Info("Generated command arguments:"+"\n"+strings.Join(previewArgs,"\n"))
 	gamepath.SeparateInstallation = false
 	gamepath.Reload()
-	if err != nil {
-		logutil.Error("Stderr of the command is",err)
-		return err,string(stdout),logPath
+	return exec.Command(t.JavaPath,t.JavaArgs...)
+}
+
+func (t *LaunchTask) buildGameArguments() {
+	if t.GameArgs[0] == "default" {
+		t.GameArgs = nil
+		t.GameArgs = append(
+			t.GameArgs,
+			"--username",
+			t.Account.Name,
+			"--version",
+			t.Profile.LastVersion(),
+			"--gameDir",
+			gamepath.Gamedir,
+			"--assetIndex",
+			t.AssetID,
+			"--uuid",
+			t.Account.AccountUUID,
+			"--accessToken",
+			t.Account.RefreshToken,
+			"--userType",
+			t.Account.AccountType,
+			"--versionType",
+			t.Profile.LastType(),
+		)
+		if t.Account.AccountType == "offline" {
+			t.GameArgs[11] = "0"
+			t.GameArgs[13] = "mojang"
+		}
+		if t.Profile.GameDirectory != "" && !t.Profile.SeparateInstallation {
+			t.GameArgs[5] = t.Profile.GameDirectory
+		}
+	} else {
+		var ArgMap = map[string]string {
+			"${auth_player_name}":t.Account.Name,
+			"${auth_session}":"0",
+			"${version_name}":t.Profile.LastVersion(),
+			"${game_directory}":gamepath.Gamedir,
+			"${game_assets}":gamepath.Assetsdir,
+			"${assets_root}":gamepath.Assetsdir,
+			"${assets_index_name}":t.AssetID,
+			"${auth_uuid}":t.Account.AccountUUID,
+			"${auth_access_token}":t.Account.RefreshToken,
+			"${user_type}":t.Account.AccountType,
+			"${user_properties}":"{}",
+			"${version_type}":t.Profile.LastType(),
+		}
+		if t.Account.AccountType == "offline" {
+			ArgMap["${auth_access_token}"] = "0"
+			ArgMap["${user_type}"] = "mojang"
+		}
+		if t.Profile.GameDirectory != "" && !t.Profile.SeparateInstallation {
+			ArgMap["${game_directory}"] = t.Profile.GameDirectory
+		}
+		for i := range t.GameArgs {
+			if i % 2 == 1 {
+				t.GameArgs[i] = ArgMap[t.GameArgs[i]]
+			}
+		}
 	}
-	return err,string(stdout),logPath
+	if t.Profile.Resolution != nil {
+		if !t.Profile.Resolution.Fullscreen {
+			t.GameArgs = append(t.GameArgs,"--width",strconv.Itoa(t.Profile.Resolution.Width))
+			t.GameArgs = append(t.GameArgs,"--height",strconv.Itoa(t.Profile.Resolution.Height))
+		} else {
+			t.GameArgs = append(t.GameArgs,"--fullscreen")
+		}
+	}
+}
+
+func (t *LaunchTask) buildJvmArgs() {
+	if (t.Profile.JavaDirectory == "" && filepath.Dir(t.JavaPath)[len(filepath.Dir(t.JavaPath))-1] == 'e') {
+		switch runtime.GOOS {
+		case "windows":
+			t.JavaPath = filepath.Join(t.JavaPath,"bin","javaw.exe")
+		case "linux":
+			t.JavaPath = filepath.Join(t.JavaPath,"bin","java")
+		case "darwin":
+			t.JavaPath = filepath.Join(t.JavaPath,"jre.bundle","Contents","Home","bin","java")
+		}
+	}
+	if t.Profile.JVMArgs != "" {
+		toSlice := regexp.MustCompile(`[^\s]+`)
+		t.JavaArgs = append(t.JavaArgs,toSlice.FindAllString(t.Profile.JVMArgs,-1)...)
+	} else {
+		t.JavaArgs = append(
+			t.JavaArgs,
+			"-Xdiag",
+			"-XX:+UnlockExperimentalVMOptions",
+			"-XX:+UseG1GC",
+			"-XX:G1NewSizePercent=20",
+			"-XX:G1ReservePercent=20",
+			"-XX:MaxGCPauseMillis=50",
+			"-XX:G1HeapRegionSize=16M",
+		)
+	}
+	if t.LogPath != "" {
+		t.JavaArgs = append(
+			t.JavaArgs,
+			"-Dlog4j2.formatMsgNoLookups=true",
+			"-Djava.library.path="+t.NativesPath,
+			"-Dlog4j.configurationFile="+t.LogPath,
+			"-Dlog4j.rootLogger=OFF",
+		)
+	} else {
+		t.JavaArgs = append(t.JavaArgs,"-Djava.library.path="+t.NativesPath)
+	}
+	if runtime.GOOS == "darwin" {
+		t.JavaArgs = append(t.JavaArgs, "-XstartOnFirstThread")
+	}
+	if runtime.GOARCH == "386" {
+		t.JavaArgs = append(t.JavaArgs, "-Xss1M")
+	}
+	t.JavaArgs = append(t.JavaArgs, "-cp", t.ClassPath, t.MainClass)
+	t.JavaArgs = append(t.JavaArgs,t.GameArgs...)
+}
+
+func (t *LaunchTask) buildClassPath() {
+	if runtime.GOOS == "windows" {
+		t.ClassPath = strings.Join(t.LibsPath,";")
+		t.ClassPath = t.ClassPath+";"+filepath.Join(gamepath.Versionsdir,t.Profile.LastVersion(),t.Profile.LastVersion()+".jar")
+	} else {
+		t.ClassPath = strings.Join(t.LibsPath,":")
+		t.ClassPath = t.ClassPath+":"+filepath.Join(gamepath.Versionsdir,t.Profile.LastVersion(),t.Profile.LastVersion()+".jar")
+	}
 }
 
 // https://gist.github.com/hyg/9c4afcd91fe24316cbf0
@@ -258,131 +377,4 @@ func InvokeDefault(url string) error {
 	}
 	if err != nil { logutil.Error("Failed to invoke default application",err); return err }
 	return err
-}
-
-func generateArguments(accountData *auth.AccountProperties,profileData *profilemanager.ProfileProperties,argumentsData *gjson.Result,runtimesPath,nativesPath,logConfigPath string,librariesPath []string) (*exec.Cmd,string) {
-	logutil.Info("Generating game arguments")
-	var jvmArgs []string
-	var gameArgs []string
-	var classPath string
-	var classPathSeparator string
-	gameLogPath := filepath.Join(gamepath.Gamedir,"logs","latest.log")
-	jvmArgs = []string{"-Xdiag","-XX:+UnlockExperimentalVMOptions","-XX:+UseG1GC","-XX:G1NewSizePercent=20","-XX:G1ReservePercent=20","-XX:MaxGCPauseMillis=50","-XX:G1HeapRegionSize=16M"}
-	if runtime.GOOS == "darwin" {
-		jvmArgs = append(jvmArgs, "-XstartOnFirstThread")
-	}
-	if runtime.GOARCH == "386" {
-		jvmArgs = append(jvmArgs, "-Xss1M")
-	}
-	if logConfigPath != "" {
-		jvmArgs = append(jvmArgs,"-Dlog4j2.formatMsgNoLookups=true","-Djava.library.path="+nativesPath,"-Dlog4j.configurationFile="+logConfigPath,"-Dlog4j.rootLogger=OFF")
-	} else {
-		jvmArgs = append(jvmArgs,"-Djava.library.path="+nativesPath)
-	}
-	if profileData.JVMArgs != "" {
-		splitRegex := regexp.MustCompile(`[^\s]+`)
-		jvmArgs = append(jvmArgs,splitRegex.FindAllString(profileData.JVMArgs,-1)...)
-	}
-	if runtime.GOOS == "windows" {
-		classPathSeparator = ";"
-		classPath = strings.Join(librariesPath,classPathSeparator)
-		classPath = classPath+classPathSeparator+filepath.Join(gamepath.Versionsdir,profileData.LastGameVersion,profileData.LastGameVersion+".jar")
-	} else {
-		classPathSeparator = ":"
-		classPath = strings.Join(librariesPath,classPathSeparator)
-		classPath = classPath+classPathSeparator+filepath.Join(gamepath.Versionsdir,profileData.LastGameVersion,profileData.LastGameVersion+".jar")
-	}
-	mainClass := argumentsData.Get("mainclass").String()
-	if argumentsData.Get("arguments").String() == "default" {
-		gameArgs = []string {
-			"--username",
-			accountData.Name,
-			"--version",
-			profileData.LastGameVersion,
-			"--gameDir",
-			gamepath.Gamedir,
-			"--assetIndex",
-			argumentsData.Get("assets").String(),
-			"--uuid",
-			accountData.AccountUUID,
-			"--accessToken",
-			accountData.RefreshToken,
-			"--userType",
-			accountData.AccountType,
-			"--versionType",
-			profileData.LastGameType,
-		}
-		if accountData.AccountType == "offline" {
-			gameArgs[11] = "0"
-			gameArgs[13] = "mojang"
-		}
-		if profileData.GameDirectory != "" && !profileData.SeparateInstallation {
-			gameArgs[5] = profileData.GameDirectory
-		}
-		if profileData.Resolution != nil {
-			if !profileData.Resolution.Fullscreen {
-				gameArgs = append(gameArgs,"--width",strconv.Itoa(profileData.Resolution.Width))
-				gameArgs = append(gameArgs,"--height",strconv.Itoa(profileData.Resolution.Height))
-			} else {
-				gameArgs = append(gameArgs,"--fullscreen")
-			}
-		}
-	} else {
-		splitRegex := regexp.MustCompile(`[^\s]+`)
-		gameArgs = splitRegex.FindAllString(argumentsData.Get("arguments").String(),-1)
-		replaceValues := []string{"${auth_player_name}","${version_name}","${version_type}","${game_directory}","${assets_root}","${game_assets}","${assets_index_name}","${auth_uuid}","${auth_access_token}","${auth_session}","${user_properties}","${user_type}"}
-		replaceWith := []string{accountData.Name,profileData.LastGameVersion,profileData.LastGameType,gamepath.Gamedir,gamepath.Assetsdir,gamepath.Assetsdir,argumentsData.Get("assets").String(),accountData.AccountUUID,accountData.RefreshToken,"","{}",accountData.AccountType}
-		if accountData.AccountType == "offline" {
-			replaceWith[8] = "0"
-			replaceWith[9] = "0"
-		}
-		if profileData.GameDirectory != "" && !profileData.SeparateInstallation {
-			gameLogPath = filepath.Join(profileData.GameDirectory,"logs","latest.log")
-			replaceWith[3] = profileData.GameDirectory
-		}
-		for i := 0; i < len(replaceValues); i++ {
-			for j := 0; j < len(gameArgs); j++ {
-				gameArgs[j] = strings.Replace(gameArgs[j],replaceValues[i],replaceWith[i],len(replaceValues[i]))
-			}
-		}
-		if profileData.Resolution != nil {
-			if !profileData.Resolution.Fullscreen {
-				gameArgs = append(gameArgs,"--width",strconv.Itoa(profileData.Resolution.Width))
-				gameArgs = append(gameArgs,"--height",strconv.Itoa(profileData.Resolution.Height))
-			} else {
-				gameArgs = append(gameArgs,"--fullscreen")
-			}
-		}
-	}
-	if (profileData.JavaDirectory == "" && filepath.Dir(runtimesPath)[len(filepath.Dir(runtimesPath))-1] == 'e') {
-		switch runtime.GOOS {
-		case "windows":
-			runtimesPath = filepath.Join(runtimesPath,"bin","javaw.exe")
-		case "linux":
-			runtimesPath = filepath.Join(runtimesPath,"bin","java")
-		case "darwin":
-			runtimesPath = filepath.Join(runtimesPath,"jre.bundle","Contents","Home","bin","java")
-		}
-	}
-	jvmArgs = append(jvmArgs,"-cp",classPath,mainClass)
-	jvmArgs = append(jvmArgs,gameArgs...)
-	os.Chdir(gamepath.Gamedir)
-	logutil.Info("Java path is "+runtimesPath)
-	previewArgs := make([]string,len(jvmArgs))
-	copy(previewArgs,jvmArgs)
-	for i := range previewArgs {
-		switch previewArgs[i] {
-		case "-cp":
-			previewArgs[i+1] = strings.Replace(previewArgs[i+1],classPathSeparator,"\n | ",len(previewArgs[i+1]))
-		case "--accessToken":
-			previewArgs[i+1] = "HIDDEN"
-		case "--session":
-			previewArgs[i+1] = "HIDDEN"
-		default:
-			continue
-		}
-	}
-	logutil.Info("Generated command arguments:"+"\n"+strings.Join(previewArgs,"\n"))
-	TaskStatus = -1
-	return exec.Command(runtimesPath,jvmArgs...),gameLogPath
 }

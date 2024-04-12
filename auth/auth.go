@@ -12,7 +12,7 @@ import (
 
 type AccountsRoot struct {
 	Accounts map[string]AccountProperties `json:"accounts"`
-	LastUsed string `json:"lastUsed,omitempty"`
+	LastUsedAccount string `json:"lastUsed,omitempty"`
 }
 
 type AccountProperties struct {
@@ -55,4 +55,38 @@ func (aRoot *AccountsRoot) SaveToFile() error {
 	_,err = file.Write(jsonData)
 	if err != nil { return err }
 	return err
+}
+
+func (aRoot *AccountsRoot) GetAccountFromName(name string) AccountProperties {
+	var data AccountProperties
+	for _,v := range aRoot.Accounts {
+		if v.Name == name {
+			data = v
+		}
+	}
+	return data
+}
+
+func (aRoot *AccountsRoot) DeleteAccount(uuid string) {
+	delete(aRoot.Accounts,uuid)
+}
+
+func (aRoot *AccountsRoot) GetAccountNames() []string {
+	slice := []string{}
+	for _,v := range aRoot.Accounts {
+		slice = append(slice, v.Name)
+	}
+	return slice
+}
+
+func (aRoot *AccountsRoot) AddProfile(a *AccountProperties,uuid string) {
+	aRoot.Accounts[uuid] = *a
+}
+
+func (aRoot *AccountsRoot) GetAccount(uuid string) AccountProperties {
+	return aRoot.Accounts[uuid]
+}
+
+func (aRoot *AccountsRoot) LastUsed() AccountProperties {
+	return aRoot.Accounts[aRoot.LastUsedAccount]
 }

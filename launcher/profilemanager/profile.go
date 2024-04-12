@@ -121,12 +121,59 @@ func (pRoot *ProfilesRoot) SaveToFile() error {
 }
 
 func (pRoot *ProfilesRoot) ProfileNameExists(name string,ptype string) bool {
+	c := 0
 	for _,v := range pRoot.Profiles {
 		if v.Name == name && v.Type == ptype {
-			return true
+			c += 1
 		}
 	}
-	return false
+	return c > 1
+}
+
+func (pRoot *ProfilesRoot) GetProfileNames() []string {
+	s := []string{}
+	for _,v := range pRoot.Profiles {
+		if v.Name != "" {
+			s = append(s,v.Name)
+		} else {
+			s = append(s,v.Type)
+		}
+	}
+	return s
+}
+
+func (pRoot *ProfilesRoot) GetProfileUUID(pData *ProfileProperties) string {
+	var uuid string
+	for k,v := range pRoot.Profiles {
+		if v.Created == pData.Created && v.LastUsed == pData.LastUsed {
+			uuid = k
+		}
+	}
+	return uuid
+}
+
+func (pRoot *ProfilesRoot) DeleteProfile(uuid string) {
+	delete(pRoot.Profiles,uuid)
+}
+
+func (pRoot *ProfilesRoot) AddProfile(p *ProfileProperties,uuid string) {
+	pRoot.Profiles[uuid] = *p
+}
+
+func (pRoot *ProfilesRoot) GetProfile(uuid string) ProfileProperties {
+	return pRoot.Profiles[uuid]
+}
+
+func (pRoot *ProfilesRoot) LastUsed() ProfileProperties {
+	return pRoot.Profiles[pRoot.LastUsedProfile]
+}
+
+func (p *ProfileProperties) LastVersion() string {
+	return p.LastGameVersion
+}
+
+func (p *ProfileProperties) LastType() string {
+	return p.LastGameType
 }
 
 func GetProfileUUID(pData *map[string]ProfileProperties,profileInfo string) string {

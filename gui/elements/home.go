@@ -4,15 +4,17 @@ import (
 	"image"
 
 	"fdesc/unknownlauncher/auth"
-	"fdesc/unknownlauncher/launcher"
 	"fdesc/unknownlauncher/gui/resources"
-	"fdesc/unknownlauncher/util/downloadutil"
+	"fdesc/unknownlauncher/launcher"
 	"fdesc/unknownlauncher/launcher/profilemanager"
+	"fdesc/unknownlauncher/util/downloadutil"
+	"fdesc/unknownlauncher/util/logutil"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
@@ -21,6 +23,10 @@ type Home struct {
 	Account          auth.AccountProperties
 	Profile          profilemanager.ProfileProperties
 	BtnSettings      *widget.Button
+	LaunchRuleFunc   func() string
+	WindowHideFunc   func()
+	WindowShowFunc   func()
+	AppExitFunc      func()
 	ListAccountsFunc func()
 	ListProfilesFunc func()
 	PopUpCanvas      fyne.Canvas
@@ -43,7 +49,14 @@ func NewHome() *Home {
 	newsLabel := canvas.NewText(launcher.ContentMessage,theme.ForegroundColor())
 	newsLabel.Alignment = fyne.TextAlignCenter
 	newsLabel.TextStyle = fyne.TextStyle{Bold: true}
-	newsImage := canvas.NewImageFromImage(launcher.ContentImage)
+	var newsImage *canvas.Image
+	uri,err := storage.ParseURI(launcher.ContentImageLink)
+	if err != nil {
+		logutil.Error("Failed to convert link to URI",err)
+		newsImage = canvas.NewImageFromImage(nil)
+	} else {
+		newsImage = canvas.NewImageFromURI(uri)
+	}
 	newsImage.FillMode = canvas.ImageFillOriginal
 	playHeading := widget.NewLabel("Play")
 	playHeading.TextStyle = fyne.TextStyle{Bold: true}
@@ -93,7 +106,66 @@ func NewHome() *Home {
 	hs.BtnSettings = widget.NewButton("",func(){})
 	hs.BtnReadMore = widget.NewButton("Read more",func(){ launcher.InvokeDefault(launcher.ContentReadMoreLink) })
 	hs.BtnProfile = widget.NewButton("",func(){ hs.ListProfilesFunc() })
-	hs.BtnPlay = widget.NewButton("",func(){})
+	hs.BtnPlay = widget.NewButton("",func() {
+		var err error
+		progress.Show()
+		progressText.Show()
+		playHeading.SetText("Loading")
+		hs.BtnProfile.Disable()
+		hs.BtnPlay.Disable()
+		hs.BaseCnt.Refresh()
+		first := downloadutil.CurrentFile
+		go func() {
+			task := &launcher.LaunchTask{Profile: &hs.Profile,Account: &hs.Account}
+			err = task.Prepare()
+			progress.Hide()
+			progressText.Hide()
+			playHeading.SetText("Play")
+			hs.BtnProfile.Enable()
+			hs.BtnPlay.Enable()
+			if err != nil {
+				logutil.Error("Failed to prepare the task",err)
+				return
+			} else {
+				switch hs.LaunchRuleFunc() {
+				case "Hide":
+					hs.WindowHideFunc()
+					output,err := task.CompleteArguments().CombinedOutput()
+					if err != nil {
+						hs.WindowShowFunc()
+						logutil.Error("Failed to start the game",err)
+						logutil.Info("Game output:"+string(output))
+						return
+					} else {
+						hs.WindowShowFunc()
+						return
+					}
+				case "Exit":
+					task.CompleteArguments().Start()
+					hs.AppExitFunc()
+					return
+				case "DoNothing":
+					output,err := task.CompleteArguments().CombinedOutput()
+					if err != nil {
+						logutil.Error("Failed to start the game",err)
+						logutil.Info("Game output:"+string(output))
+						return
+					}
+				}
+			}
+		}()
+		go func() {
+			for {
+				if progressText.Hidden {
+					return
+				}
+				if first != downloadutil.CurrentFile {
+					progressText.Text = downloadutil.CurrentFile
+					progressText.Refresh()
+				}
+			}
+		}()
+	})
 	hs.SettingsCnt = NewSquareButtonWithIcon(settingsLabel,settingsImg,hs.BtnSettings,36)
 	hs.PlayCnt = NewRectangleButtonWithIcon(playHeading,playLabel,playIcon,hs.BtnPlay,127)
 	hs.AccountCnt = NewSquareButtonWithIcon(accountLabel,canvas.NewImageFromResource(nil),accountInfoBtn,36)

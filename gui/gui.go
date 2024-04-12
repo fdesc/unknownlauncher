@@ -1,13 +1,14 @@
 package gui
 
 import (
+	"os"
 	"strconv"
 	"time"
 
 	"fdesc/unknownlauncher/auth"
-	"fdesc/unknownlauncher/launcher"
 	"fdesc/unknownlauncher/gui/elements"
 	"fdesc/unknownlauncher/gui/resources"
+	"fdesc/unknownlauncher/launcher"
 	"fdesc/unknownlauncher/launcher/profilemanager"
 	"fdesc/unknownlauncher/util/logutil"
 
@@ -84,72 +85,86 @@ func (g *gui) ReloadSettings() {
 }
 
 func (g *gui) SetProperties() {
-	au := g.Elements.Auth
-	ao := g.Elements.AuthOffline
-	al := g.Elements.AccountList
-	pl := g.Elements.ProfileList
-	pe := g.Elements.ProfileEdit
-	se := g.Elements.Settings
-	hs := g.Elements.HomeScreen
-	al.GetAccountFunc = func(name string) auth.AccountProperties {
-		return GetAccountFromName(lAccounts.Accounts,name)
+	g.bindAuth()
+	g.bindAuthOffline()
+	g.bindAccountList()
+	g.bindProfileList()
+	g.bindProfileEdit()
+	g.bindSettings()
+	g.bindHomeScreen()
+}
+
+func (g *gui) bindHomeScreen() {
+	g.Elements.HomeScreen.AppExitFunc = func() {
+		g.Elements.HomeScreen.WindowHideFunc()
+		g.App.Quit()
+		os.Exit(0)
 	}
-	al.DelAccountFunc = func(name string) {
-		DeleteAccount(lAccounts,name)
-		al.Update(GetAccountNames(lAccounts.Accounts))
+	g.Elements.HomeScreen.WindowHideFunc = func() { g.Window.Hide() }
+	g.Elements.HomeScreen.WindowShowFunc = func() { g.Window.Show() }
+	g.Elements.HomeScreen.LaunchRuleFunc = func() string { return lSettings.LaunchRule }
+	g.Elements.HomeScreen.ListAccountsFunc = func() { g.SetContainer(g.Elements.AccountList.BaseCnt) }
+	g.Elements.HomeScreen.BtnSettings.OnTapped = func() { g.SetContainer(g.Elements.Settings.BaseCnt) }
+	g.Elements.HomeScreen.BtnProfile.OnTapped = func() { g.SetContainer(g.Elements.ProfileList.BaseCnt) }
+	g.Elements.HomeScreen.PopUpCanvas = g.Window.Canvas()
+}
+
+func (g *gui) bindSettings() {
+	g.Elements.Settings.BtnOk.OnTapped = func() {
+		lSettings.LauncherTheme = g.Elements.Settings.ThemeRadio.Selected
+		switch g.Elements.Settings.LaunchRuleSelect.Selected[0] {
+		case 'H':
+			lSettings.LaunchRule = "Hide"
+		case 'E':
+			lSettings.LaunchRule = "Exit"
+		case 'D':
+			lSettings.LaunchRule = "DoNothing"
+		}
+		lSettings.DisableValidation = g.Elements.Settings.IntegrityCheck.Checked
+		lSettings.SaveToFile()
+		g.ReloadSettings()
+		g.Elements.Settings.Update(lSettings.LauncherTheme,lSettings.LaunchRule,lSettings.DisableValidation)
+		g.SetContainer(g.Elements.HomeScreen.BaseCnt)
 	}
-	al.SelectAccountFunc = func(uuid string) {
-		logutil.Info("Selecting account with the UUID: "+uuid)
-		selectedAccount := lAccounts.Accounts[uuid]
-		lAccounts.LastUsed = uuid
-		lAccounts.SaveToFile()
-		if selectedAccount.AccountType == "offline" {
-			skinData,_ := auth.GetSkinData(auth.InitializeClient(),selectedAccount.AccountUUID)
-			skinUrl := auth.GetSkinUrl(skinData)
-			hs.SetSkinIcon(auth.CropSkinImage(skinUrl))
-			hs.Update(selectedAccount,lProfiles.Profiles[lProfiles.LastUsedProfile])
-			g.SetContainer(hs.BaseCnt)
+	g.Elements.Settings.ThemeRadio.OnChanged = func(option string) {
+		switch option {
+		case "Dark":
+			g.App.Settings().SetTheme(&resources.DefaultDarkTheme{})
+		case "Light":
+			g.App.Settings().SetTheme(&resources.DefaultLightTheme{})
 		}
 	}
-	ao.AuthFunc = func(name string) error {
-		skinimg,err := lAccounts.SaveOfflineAccount(name)
-		if err != nil { return err }
-		al.Update(GetAccountNames(lAccounts.Accounts))
-		hs.SetSkinIcon(skinimg)
-		hs.Update(lAccounts.Accounts[lAccounts.LastUsed],lProfiles.Profiles[lProfiles.LastUsedProfile])
-		g.SetContainer(hs.BaseCnt)
-		ao.ResetEntry()
-		return nil
+	g.Elements.Settings.BtnCancel.OnTapped = func() {
+		g.ReloadSettings()
+		g.Elements.Settings.Update(lSettings.LauncherTheme,lSettings.LaunchRule,lSettings.DisableValidation)
+		g.SetContainer(g.Elements.HomeScreen.BaseCnt)
 	}
-	pl.LookupMapRefresh = func() {
-		pl.LookupMap = make(map[string]string)
-		for k,v := range lProfiles.Profiles {
-			if v.Name != "" {
-				pl.LookupMap[v.Name] = k
-			} else {
-				pl.LookupMap[v.Type] = k
-			}
+}
+
+func (g *gui) bindProfileEdit() {
+	g.Elements.ProfileEdit.SaveProfileFunc = func() {
+		lProfiles.AddProfile(g.Elements.ProfileEdit.Profile,g.Elements.ProfileEdit.ProfileUUID)
+		if lProfiles.ProfileNameExists(g.Elements.ProfileEdit.Profile.Name,g.Elements.ProfileEdit.Profile.Type) {
+			savedProfile := lProfiles.GetProfile(g.Elements.ProfileEdit.ProfileUUID)
+			savedProfile.Name = savedProfile.Name+"-"+strconv.Itoa(len(lProfiles.Profiles)+1)
+			lProfiles.AddProfile(&savedProfile,g.Elements.ProfileEdit.ProfileUUID)
 		}
+		lProfiles.SaveToFile()
+		g.Elements.ProfileList.Update(lProfiles.GetProfileNames())
+		g.Elements.ProfileList.LookupMapRefresh()
+		g.Elements.ProfileEdit.Update(&profilemanager.ProfileProperties{},"")
+		g.SetContainer(g.Elements.ProfileList.BaseCnt)
 	}
-	pl.CreateProfileFunc = func() (profilemanager.ProfileProperties,string) {
-		p := profilemanager.ProfileProperties{}
-		p.Name = "Profile "+strconv.Itoa(len(lProfiles.Profiles)+1)
-		p.Type = "custom-profile"
-		p.Created = time.Now().Format(time.RFC3339)
-		p.LastUsed = time.Now().Format(time.RFC3339)
-		uuid,err := profilemanager.GenerateProfileUUID()
-		if err != nil { /**/ }
-		return p,uuid
+	g.Elements.ProfileEdit.BtnCancel.OnTapped = func() {
+		g.Elements.ProfileList.Update(lProfiles.GetProfileNames())
+		g.Elements.ProfileList.LookupMapRefresh()
+		g.Elements.ProfileEdit.Update(&profilemanager.ProfileProperties{},"")
+		g.SetContainer(g.Elements.ProfileList.BaseCnt)
 	}
-	pl.GetProfileFunc = func(name string) (profilemanager.ProfileProperties,string) {
-		uuid := pl.LookupMap[name]
-		return lProfiles.Profiles[uuid],uuid
-	}
-	pl.EditProfileFunc = func(p profilemanager.ProfileProperties,uuid string) {
-		pe.Update(&p,uuid)
-		g.SetContainer(pe.BaseCnt)
-	}
-	pl.CopyProfileFunc = func(p profilemanager.ProfileProperties) {
+}
+
+func (g *gui) bindProfileList() {
+	g.Elements.ProfileList.CopyProfileFunc = func(p profilemanager.ProfileProperties) {
 		logutil.Info("Copying profile")
 		profile := p
 		profile.Name = p.Name+"-copy-"+strconv.Itoa(len(lProfiles.Profiles)+1)
@@ -158,88 +173,106 @@ func (g *gui) SetProperties() {
 		profile.Created = time.Now().Format(time.RFC3339)
 		uuid,err := profilemanager.GenerateProfileUUID()
 		if err != nil { return }
-		lProfiles.Profiles[uuid] = profile
+		lProfiles.AddProfile(&profile,uuid)
 		lProfiles.SaveToFile()
-		pl.Update(GetProfileNames(&lProfiles.Profiles))
-		pl.LookupMapRefresh()
+		g.Elements.ProfileList.Update(lProfiles.GetProfileNames())
+		g.Elements.ProfileList.LookupMapRefresh()
 	}
-	pl.DelProfileFunc = func(name string) {
-		logutil.Info("Removing profile")
-		uuid := pl.LookupMap[name]
-		DeleteProfile(lProfiles,uuid)
-		pl.Update(GetProfileNames(&lProfiles.Profiles))
-		pl.LookupMapRefresh()
-	}
-	pl.SelectProfileFunc = func(name string) {
-		uuid := pl.LookupMap[name]
+	g.Elements.ProfileList.SelectProfileFunc = func(name string) {
+		uuid := g.Elements.ProfileList.LookupMap[name]
 		logutil.Info("Selecting profile with UUID: "+uuid)
 		lProfiles.LastUsedProfile = uuid
 		lProfiles.SaveToFile()
-		pl.LookupMapRefresh()
-		hs.Update(lAccounts.Accounts[lAccounts.LastUsed],lProfiles.Profiles[uuid])
-		g.SetContainer(hs.BaseCnt)
+		g.Elements.ProfileList.LookupMapRefresh()
+		g.Elements.HomeScreen.Update(lAccounts.LastUsed(),lProfiles.GetProfile(uuid))
+		g.SetContainer(g.Elements.HomeScreen.BaseCnt)
 	}
-	pe.SaveProfileFunc = func() {
-		if lProfiles.ProfileNameExists(pe.Profile.Name,pe.Profile.Type) {
-			pe.Profile.Name = pe.Profile.Type+"-"+strconv.Itoa(len(lProfiles.Profiles)+1)
+	g.Elements.ProfileList.CreateProfileFunc = func() (profilemanager.ProfileProperties,string) {
+		p := profilemanager.ProfileProperties{}
+		p.Name = "Profile "+strconv.Itoa(len(lProfiles.Profiles)+1)
+		p.Type = "custom-profile"
+		p.Created = time.Now().Format(time.RFC3339)
+		p.LastUsed = time.Now().Format(time.RFC3339)
+		uuid,_ := profilemanager.GenerateProfileUUID()
+		return p,uuid
+	}
+	g.Elements.ProfileList.LookupMapRefresh = func() {
+		g.Elements.ProfileList.LookupMap = make(map[string]string)
+		for k,v := range lProfiles.Profiles {
+			if v.Name != "" {
+				g.Elements.ProfileList.LookupMap[v.Name] = k
+			} else {
+				g.Elements.ProfileList.LookupMap[v.Type] = k
+			}
 		}
-		lProfiles.Profiles[pe.ProfileUUID] = *pe.Profile
+	}
+	g.Elements.ProfileList.DelProfileFunc = func(name string) {
+		logutil.Info("Removing profile")
+		uuid := g.Elements.ProfileList.LookupMap[name]
+		lProfiles.DeleteProfile(uuid)
 		lProfiles.SaveToFile()
-		pl.Update(GetProfileNames(&lProfiles.Profiles))
-		pl.LookupMapRefresh()
-		pe.Update(&profilemanager.ProfileProperties{},"")
-		g.SetContainer(pl.BaseCnt)
+		g.Elements.ProfileList.Update(lProfiles.GetProfileNames())
+		g.Elements.ProfileList.LookupMapRefresh()
 	}
-	pe.BtnCancel.OnTapped = func() {
-		pl.Update(GetProfileNames(&lProfiles.Profiles))
-		pl.LookupMapRefresh()
-		pe.Update(&profilemanager.ProfileProperties{},"")
-		g.SetContainer(pl.BaseCnt)
+	g.Elements.ProfileList.GetProfileFunc = func(name string) (profilemanager.ProfileProperties,string) {
+		uuid := g.Elements.ProfileList.LookupMap[name]
+		return lProfiles.GetProfile(uuid),uuid
 	}
-	se.ThemeRadio.OnChanged = func(option string) {
-		switch option {
-		case "Dark":
-			g.App.Settings().SetTheme(&resources.DefaultDarkTheme{})
-		case "Light":
-			g.App.Settings().SetTheme(&resources.DefaultLightTheme{})
+	g.Elements.ProfileList.EditProfileFunc = func(p profilemanager.ProfileProperties,uuid string) {
+		g.Elements.ProfileEdit.Update(&p,uuid)
+		g.SetContainer(g.Elements.ProfileEdit.BaseCnt)
+	}
+	g.Elements.ProfileList.PopUpCanvas = g.Window.Canvas()
+	g.Elements.ProfileList.LookupMapRefresh()
+	g.Elements.ProfileList.Update(lProfiles.GetProfileNames())
+}
+
+func(g *gui) bindAuthOffline() {
+	g.Elements.AuthOffline.AuthFunc = func(name string) error {
+		skinimg,err := lAccounts.SaveOfflineAccount(name)
+		if err != nil { return err }
+		g.Elements.AccountList.Update(lAccounts.GetAccountNames())
+		g.Elements.HomeScreen.SetSkinIcon(skinimg)
+		g.Elements.HomeScreen.Update(lAccounts.LastUsed(),lProfiles.LastUsed())
+		g.SetContainer(g.Elements.HomeScreen.BaseCnt)
+		g.Elements.AuthOffline.ResetEntry()
+		return nil
+	}
+	g.Elements.AuthOffline.BtnCancel.OnTapped  = func() {
+		g.SetContainer(g.Elements.Auth.BaseCnt)
+		g.Elements.AuthOffline.ResetEntry()
+	}
+}
+
+func (g *gui) bindAccountList() {
+	g.Elements.AccountList.SelectAccountFunc = func(uuid string) {
+		logutil.Info("Selecting account with the UUID: "+uuid)
+		selectedAccount := lAccounts.GetAccount(uuid)
+		lAccounts.LastUsedAccount = uuid
+		lAccounts.SaveToFile()
+		if selectedAccount.AccountType == "offline" {
+			skinData,_ := auth.GetSkinData(auth.InitClient(),selectedAccount.AccountUUID)
+			skinUrl := auth.GetSkinUrl(skinData)
+			g.Elements.HomeScreen.SetSkinIcon(auth.CropSkinImage(skinUrl))
+			g.Elements.HomeScreen.Update(selectedAccount,lProfiles.Profiles[lProfiles.LastUsedProfile])
+			g.SetContainer(g.Elements.HomeScreen.BaseCnt)
 		}
 	}
-	se.BtnOk.OnTapped = func() {
-		lSettings.LauncherTheme = se.ThemeRadio.Selected
-		switch se.LaunchRuleSelect.Selected[0] {
-		case 'H':
-			lSettings.LaunchRule = "Hide"
-		case 'E':
-			lSettings.LaunchRule = "Exit"
-		case 'D':
-			lSettings.LaunchRule = "DoNothing"
-		}
-		lSettings.DisableValidation = se.IntegrityCheck.Checked
-		lSettings.SaveToFile()
-		g.ReloadSettings()
-		se.Update(lSettings.LauncherTheme,lSettings.LaunchRule,lSettings.DisableValidation)
-		g.SetContainer(hs.BaseCnt)
+	g.Elements.AccountList.DelAccountFunc = func(name string) {
+		lAccounts.DeleteAccount(name)
+		lAccounts.SaveToFile()
+		g.Elements.AccountList.Update(lAccounts.GetAccountNames())
 	}
-	se.BtnCancel.OnTapped = func() {
-		g.ReloadSettings()
-		se.Update(lSettings.LauncherTheme,lSettings.LaunchRule,lSettings.DisableValidation)
-		g.SetContainer(hs.BaseCnt)
+	g.Elements.AccountList.GetAccountFunc = func(name string) auth.AccountProperties {
+		return lAccounts.GetAccountFromName(name)
 	}
-	hs.ListAccountsFunc = func() { g.SetContainer(al.BaseCnt) }
-	hs.BtnSettings.OnTapped = func() { g.SetContainer(se.BaseCnt) }
-	hs.BtnProfile.OnTapped = func() { g.SetContainer(pl.BaseCnt) }
-	hs.PopUpCanvas = g.Window.Canvas()
-	au.BtnMS.OnTapped      = func() {}
-	au.BtnOffline.OnTapped = func() { g.SetContainer(ao.BaseCnt) }
-	au.BtnList.OnTapped    = func() { g.SetContainer(al.BaseCnt) }
-	ao.BtnCancel.OnTapped  = func() {
-		g.SetContainer(au.BaseCnt)
-		ao.ResetEntry()
-	}
-	al.BtnNew.OnTapped     = func() { g.SetContainer(au.BaseCnt) }
-	al.Update(GetAccountNames(lAccounts.Accounts))
-	al.PopUpCanvas = g.Window.Canvas()
-	pl.PopUpCanvas = g.Window.Canvas()
-	pl.LookupMapRefresh()
-	pl.Update(GetProfileNames(&lProfiles.Profiles))
+	g.Elements.AccountList.Update(lAccounts.GetAccountNames())
+	g.Elements.AccountList.PopUpCanvas = g.Window.Canvas()
+	g.Elements.AccountList.BtnNew.OnTapped = func() { g.SetContainer(g.Elements.AuthOffline.BaseCnt) }
+}
+
+func (g *gui) bindAuth() {
+	g.Elements.Auth.BtnMS.OnTapped      = func() {}
+	g.Elements.Auth.BtnOffline.OnTapped = func() { g.SetContainer(g.Elements.AuthOffline.BaseCnt) }
+	g.Elements.Auth.BtnList.OnTapped    = func() { g.SetContainer(g.Elements.AccountList.BaseCnt) }
 }

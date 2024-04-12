@@ -1,13 +1,14 @@
 package elements
 
 import (
-	"strconv"
 	"errors"
 	"os"
+	"strconv"
 
+	"fdesc/unknownlauncher/gui/resources"
 	"fdesc/unknownlauncher/launcher/profilemanager"
 	"fdesc/unknownlauncher/launcher/versionmanager"
-	"fdesc/unknownlauncher/gui/resources"
+	"fdesc/unknownlauncher/util/logutil"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -22,6 +23,7 @@ type ProfileEdit struct {
 	Profile                 *profilemanager.ProfileProperties
 	NameEntry               *widget.Entry
 	VersionTSelect          *widget.Select
+	TypeSlice               []string
 	VersionSelect           *widget.Select
 	GameDirEntry            *widget.Entry
 	SeparateInstallation    *widget.Check
@@ -54,45 +56,72 @@ func NewProfileEdit() *ProfileEdit {
 	javaDirButton := widget.NewButton("Browse",func(){})
 	javaArgsLabel := widget.NewLabel("JVM arguments")
 	pe.NameEntry = widget.NewEntry()
-	var versionTypeSlice []string
 	for k := range versionmanager.VersionList {
-		versionTypeSlice = append(versionTypeSlice, k)
+		pe.TypeSlice = append(pe.TypeSlice, k)
 	}
-	pe.VersionTSelect = widget.NewSelect(versionTypeSlice,func(s string){
+	pe.TypeSlice = versionmanager.SortVersionTypes(pe.TypeSlice)
+	pe.VersionTSelect = widget.NewSelect(pe.TypeSlice,func(s string){
 		pe.VersionSelect.Options = versionmanager.VersionList[s]
 		pe.VersionSelect.Selected = versionmanager.VersionList[s][0]
 		pe.VersionSelect.Refresh()
 	})
-	pe.VersionTSelect.Selected = versionTypeSlice[0]
+	pe.VersionTSelect.Selected = pe.TypeSlice[0]
 	pe.VersionSelect = widget.NewSelect(versionmanager.VersionList[pe.VersionTSelect.Selected],func(string){})
-	if pe.Profile.LastGameType != "" {
-		pe.VersionTSelect.Selected = pe.Profile.LastGameType
+	if pe.Profile.LastType() != "" {
+		pe.VersionTSelect.Selected = pe.Profile.LastType()
 	}
 	pe.GameDirEntry = widget.NewEntry()
+	// user should not be able to use the separate installation feature if the game directory entry is empty
+	// the Disable() and Enable() functions of the check is provided by fyne api these functions does not change the behaviour of the feature
 	pe.GameDirEntry.Validator = fyne.StringValidator(func(path string) error {
-		if path == "" { return nil }
+		pe.SeparateInstallation.Disable()
+		if path == "" {
+			return nil
+		}
 		f,err := os.Open(path)
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 		fStat,err := f.Stat()
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 		if fStat.IsDir() {
+			pe.SeparateInstallation.Enable()
 			return nil
 		} else {
 			return errors.New("Not a directory")
 		}
 	})
-	pe.SeparateInstallation = widget.NewCheck("Separate installation",func(bool){})
+	pe.SeparateInstallation = widget.NewCheck("Separate installation",func(checked bool){})
+	pe.SeparateInstallation.Disable()
 	pe.ResolutionHEntry = widget.NewEntry()
 	pe.ResolutionHEntry.SetPlaceHolder("Height")
+	pe.ResolutionHEntry.Validator = fyne.StringValidator(func(val string) error {
+		for _,c := range val {
+			switch c {
+			case '1','2','3','4','5','6','7','8','9','0':
+				continue
+			default:
+				return errors.New("NaN")
+			}
+		}
+		return nil
+	})
 	pe.ResolutionWEntry = widget.NewEntry()
 	pe.ResolutionWEntry.SetPlaceHolder("Width")
+	pe.ResolutionWEntry.Validator = pe.ResolutionHEntry.Validator
 	pe.FullscreenCheck = widget.NewCheck("Fullscreen",func(checked bool){
 		if checked {
 			pe.ResolutionWEntry.Disable()
 			pe.ResolutionHEntry.Disable()
 		} else {
+			pe.ResolutionWEntry.Enable()
+			pe.ResolutionHEntry.Enable()
 			pe.ResolutionWEntry.Text = "854"
 			pe.ResolutionHEntry.Text = "480"
+			pe.ResolutionWEntry.FocusGained()
+			pe.ResolutionHEntry.FocusGained()
 		}
 	})
 	pe.JavaExecEntry = widget.NewEntry()
@@ -111,7 +140,12 @@ func NewProfileEdit() *ProfileEdit {
 	pe.JavaArgsEntry = widget.NewEntry()
 	pe.BtnCancel = widget.NewButton("Cancel",func(){})
 	pe.BtnOk = widget.NewButton("Save",func() {
-		// log
+		if pe.ResolutionWEntry.Validate() != nil {
+			return
+		}
+		if pe.ResolutionHEntry.Validate() != nil {
+			return
+		}
 		if pe.GameDirEntry.Validate() != nil {
 			return
 		}
@@ -128,15 +162,21 @@ func NewProfileEdit() *ProfileEdit {
 			pe.Profile.Resolution = &profilemanager.ProfileResolution{Fullscreen:pe.FullscreenCheck.Checked}
 		} else if pe.ResolutionHEntry.Text != "" && pe.ResolutionWEntry.Text != "" && !pe.FullscreenCheck.Checked {
 			h,err := strconv.Atoi(pe.ResolutionHEntry.Text)
-			if err != nil { /* log */ }
+			if err != nil { 
+				logutil.Error("Failed to do conversion (string -> int)",err)
+				return
+			}
 			w,err := strconv.Atoi(pe.ResolutionWEntry.Text)
-			if err != nil { /* log */ }
+			if err != nil {
+				logutil.Error("Failed to do conversion (string -> int)",err)
+				return
+			}
 			pe.Profile.Resolution = &profilemanager.ProfileResolution{Width:w,Height:h,Fullscreen:false}
 		} else {
 			pe.Profile.Resolution = nil
 		}
-		pe.GameDirEntry.Text = pe.Profile.GameDirectory
-		pe.JavaExecEntry.Text = pe.Profile.JavaDirectory
+		pe.Profile.GameDirectory = pe.GameDirEntry.Text
+		pe.Profile.JavaDirectory = pe.JavaExecEntry.Text
 		pe.Profile.SeparateInstallation = pe.SeparateInstallation.Checked
 		pe.SaveProfileFunc()
 	})
@@ -183,16 +223,20 @@ func (pe *ProfileEdit) Update(profile *profilemanager.ProfileProperties,uuid str
 	if pe.Profile.Name != "" {
 		pe.NameEntry.SetText(pe.Profile.Name)
 	}
-	if pe.Profile.LastGameVersion != "" {
-		pe.VersionSelect.Selected = pe.Profile.LastGameVersion
-		pe.VersionTSelect.Selected = pe.Profile.LastGameType
+	if pe.Profile.LastVersion() != "" {
+		pe.VersionTSelect.Selected = pe.Profile.LastType()
+		pe.VersionSelect.Selected = pe.Profile.LastVersion()
 	} else {
-		pe.VersionSelect.Selected = versionmanager.LatestRelease
-		pe.VersionTSelect.Selected = "release"
+		pe.VersionTSelect.Selected = pe.TypeSlice[0]
+		pe.VersionSelect.Selected = versionmanager.VersionList[pe.VersionTSelect.Selected][0]
 	}
 	pe.JavaArgsEntry.SetText(pe.Profile.JVMArgs)
 	if pe.Profile.Resolution != nil {
-		pe.FullscreenCheck.Checked = pe.Profile.Resolution.Fullscreen
+		if pe.Profile.Resolution.Fullscreen {
+			pe.FullscreenCheck.Checked = pe.Profile.Resolution.Fullscreen
+			pe.ResolutionHEntry.Disable()
+			pe.ResolutionWEntry.Disable()
+		}
 		if pe.Profile.Resolution.Width != 0 && pe.Profile.Resolution.Height != 0 {
 			pe.ResolutionHEntry.SetText(strconv.Itoa(pe.Profile.Resolution.Height))
 			pe.ResolutionWEntry.SetText(strconv.Itoa(pe.Profile.Resolution.Width))
@@ -202,4 +246,10 @@ func (pe *ProfileEdit) Update(profile *profilemanager.ProfileProperties,uuid str
 	pe.JavaExecEntry.SetText(pe.Profile.JavaDirectory)
 	pe.JavaArgsEntry.SetText(pe.Profile.JVMArgs)
 	pe.SeparateInstallation.Checked = pe.Profile.SeparateInstallation
+	if pe.GameDirEntry.Text != "" {
+		pe.SeparateInstallation.Enable()
+	} else {
+		pe.SeparateInstallation.Checked = false
+		pe.SeparateInstallation.Disable()
+	}
 }

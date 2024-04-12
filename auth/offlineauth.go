@@ -46,8 +46,8 @@ type ProfileData struct {
 	Legacy bool `json:"legacy"`
 }
 
-func InitializeClient() *http.Client {
-	return &http.Client{Timeout: 30*time.Second}
+func InitClient() *http.Client {
+	return &http.Client{Timeout: 60*time.Second}
 }
 
 func (aRoot *AccountsRoot) SaveOfflineAccount(username string) (image.Image,error) {
@@ -63,7 +63,7 @@ func (aRoot *AccountsRoot) SaveOfflineAccount(username string) (image.Image,erro
 		AccountType: "offline",
 		AccountUUID: uuid,
 	}
-	aRoot.LastUsed = uuid
+	aRoot.LastUsedAccount = uuid
 	aRoot.SaveToFile()
 	logutil.Info("Saved offline account with name: "+username)
 	if skinsrc == "" {
@@ -73,7 +73,7 @@ func (aRoot *AccountsRoot) SaveOfflineAccount(username string) (image.Image,erro
 }
 
 func PerformOfflineAuthentication(username string) (string,string) {
-	client := InitializeClient()
+	client := InitClient()
 	uInformation,uStatus := GetUUIDFromUsername(client,username)
 	if uStatus == 429 {
 		client.CloseIdleConnections()
