@@ -1,19 +1,19 @@
 package elements
 
 import (
-	"image/color"
-	"path/filepath"
+   "image/color"
+   "path/filepath"
    "os"
 
-	"fdesc/unknownlauncher/launcher"
-	"fdesc/unknownlauncher/util/logutil"
+   "fdesc/unknownlauncher/launcher"
+   "fdesc/unknownlauncher/util/logutil"
 
-	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
-	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/layout"
-	"fyne.io/fyne/v2/theme"
-	"fyne.io/fyne/v2/widget"
+   "fyne.io/fyne/v2"
+   "fyne.io/fyne/v2/canvas"
+   "fyne.io/fyne/v2/container"
+   "fyne.io/fyne/v2/layout"
+   "fyne.io/fyne/v2/theme"
+   "fyne.io/fyne/v2/widget"
 )
 
 type CrashInformer struct {
@@ -52,9 +52,9 @@ func (cinf *CrashInformer) Start(err error,output,logPath string) {
    if crashLog != "" {
       cinf.InfoWindow.SetContent(
          container.NewBorder(container.NewPadded(container.NewVBox(
-                  container.NewPadded(logPathText),
-                  container.NewPadded(errorMessage),
-               ),
+            container.NewPadded(logPathText),
+            container.NewPadded(errorMessage),
+            ),
             ),
             container.NewPadded(
                container.NewHBox(
@@ -63,26 +63,26 @@ func (cinf *CrashInformer) Start(err error,output,logPath string) {
                   gameOutputButton,
                   launcherLogButton,
                   closeButton,
+                  ),
                ),
-            ),
             nil,
             nil,
             container.NewScroll(container.NewPadded(container.NewStack(textRect,crashText))),
-         ),
-      )
+            ),
+         )
    } else {
       cinf.InfoWindow.SetContent(
          container.NewBorder(container.NewPadded(container.NewVBox(
-                  container.NewPadded(logPathText),
-                  container.NewPadded(errorMessage),
-               ),
+            container.NewPadded(logPathText),
+            container.NewPadded(errorMessage),
+            ),
             ),
             container.NewPadded(container.NewHBox(layout.NewSpacer(),gameOutputButton,launcherLogButton,closeButton)),
             nil,
             nil,
             nil,
-         ),
-      )
+            ),
+         )
    }
    cinf.InfoWindow.Show()
 }
