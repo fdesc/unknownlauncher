@@ -7,6 +7,7 @@ import (
 	"fdesc/unknownlauncher/gui/resources"
 	"fdesc/unknownlauncher/launcher"
 	"fdesc/unknownlauncher/launcher/profilemanager"
+	"fdesc/unknownlauncher/launcher/versionmanager"
 	"fdesc/unknownlauncher/util/downloadutil"
 	"fdesc/unknownlauncher/util/logutil"
 
@@ -14,30 +15,30 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
-	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
 type Home struct {
-	Account          auth.AccountProperties
-	Profile          profilemanager.ProfileProperties
-	BtnSettings      *widget.Button
-	LaunchRuleFunc   func() string
-	WindowHideFunc   func()
-	WindowShowFunc   func()
-	AppExitFunc      func()
-	ListAccountsFunc func()
-	ListProfilesFunc func()
-	PopUpCanvas      fyne.Canvas
-	AccountCnt       *fyne.Container
-	ProfileCnt       *fyne.Container
-	BtnProfile       *widget.Button
-	BtnPlay          *widget.Button
-	PlayCnt          *fyne.Container
-	SettingsCnt      *fyne.Container
-	BtnReadMore      *widget.Button
-	BaseCnt          *fyne.Container
+	Account           auth.AccountProperties
+	Profile           profilemanager.ProfileProperties
+	BtnSettings       *widget.Button
+	LaunchRuleFunc    func() string
+	WindowHideFunc    func()
+	WindowShowFunc    func()
+	AppExitFunc       func()
+	ListAccountsFunc  func()
+	ListProfilesFunc  func()
+   CrashInformerFunc func(err error,output string,logPath string)
+	PopUpCanvas       fyne.Canvas
+	AccountCnt        *fyne.Container
+	ProfileCnt        *fyne.Container
+	BtnProfile        *widget.Button
+	BtnPlay           *widget.Button
+	PlayCnt           *fyne.Container
+	SettingsCnt       *fyne.Container
+	BtnReadMore       *widget.Button
+	BaseCnt           *fyne.Container
 }
 
 func NewHome() *Home {
@@ -46,16 +47,14 @@ func NewHome() *Home {
 	settingsImg := canvas.NewImageFromResource(theme.SettingsIcon())
 	settingsImg.FillMode = canvas.ImageFillOriginal
 	accountLabel := widget.NewLabel("")
-	newsLabel := canvas.NewText(launcher.ContentMessage,theme.ForegroundColor())
+	newsLabel := canvas.NewText(launcher.ContentMessage,theme.PlaceHolderColor())
 	newsLabel.Alignment = fyne.TextAlignCenter
 	newsLabel.TextStyle = fyne.TextStyle{Bold: true}
-	var newsImage *canvas.Image
-	uri,err := storage.ParseURI(launcher.ContentImageLink)
-	if err != nil {
-		logutil.Error("Failed to convert link to URI",err)
-		newsImage = canvas.NewImageFromImage(nil)
+	var newsImage = new(canvas.Image)
+	if launcher.ContentImage == nil {
+		newsImage = canvas.NewImageFromResource(theme.BrokenImageIcon())
 	} else {
-		newsImage = canvas.NewImageFromURI(uri)
+		newsImage = canvas.NewImageFromImage(launcher.ContentImage)
 	}
 	newsImage.FillMode = canvas.ImageFillOriginal
 	playHeading := widget.NewLabel("Play")
@@ -66,12 +65,12 @@ func NewHome() *Home {
 		var modal *widget.PopUp
 		skinImg := canvas.NewImageFromImage(
 			hs.AccountCnt.Objects[0].(*fyne.Container).
-			             Objects[1].(*fyne.Container).
-		                     Objects[0].(*fyne.Container).
-		                     Objects[0].(*fyne.Container).
-			             Objects[1].(*fyne.Container).
-	                             Objects[0].(*fyne.Container).
-		                     Objects[0].(*canvas.Image).Image,
+                       Objects[1].(*fyne.Container).
+		                 Objects[0].(*fyne.Container).
+		                 Objects[0].(*fyne.Container).
+			              Objects[1].(*fyne.Container).
+	                    Objects[0].(*fyne.Container).
+		                 Objects[0].(*canvas.Image).Image,
 		)
 		skinImg.FillMode = canvas.ImageFillOriginal
 		nameLabel := widget.NewLabel(hs.Account.Name)
@@ -95,16 +94,24 @@ func NewHome() *Home {
 		)
 		modal.Show()
 	})
+   var profileLabel *widget.Label
 	profileHeading := widget.NewLabel("")
 	profileHeading.TextStyle = fyne.TextStyle{Bold: true}
-	profileLabel := widget.NewLabel(hs.Profile.LastGameType+" "+hs.Profile.LastGameVersion)
+   if !launcher.OfflineMode {
+      profileLabel = widget.NewLabel(versionmanager.GetVersionType(hs.Profile.LastVersion())+" "+hs.Profile.LastVersion())
+   } else {
+      profileLabel = widget.NewLabel("Local "+hs.Profile.LastVersion())
+   }
 	playLabel := widget.NewLabel("")
 	progress := widget.NewProgressBarInfinite()
 	progress.Hide()
-	progressText := canvas.NewText(downloadutil.CurrentFile,theme.ForegroundColor())
+	progressText := canvas.NewText(downloadutil.CurrentFile,theme.PlaceHolderColor())
 	progressText.Hide()
 	hs.BtnSettings = widget.NewButton("",func(){})
 	hs.BtnReadMore = widget.NewButton("Read more",func(){ launcher.InvokeDefault(launcher.ContentReadMoreLink) })
+   if launcher.OfflineMode {
+      hs.BtnReadMore.Hide()
+   }
 	hs.BtnProfile = widget.NewButton("",func(){ hs.ListProfilesFunc() })
 	hs.BtnPlay = widget.NewButton("",func() {
 		var err error
@@ -130,25 +137,30 @@ func NewHome() *Home {
 				switch hs.LaunchRuleFunc() {
 				case "Hide":
 					hs.WindowHideFunc()
-					output,err := task.CompleteArguments().CombinedOutput()
+					command,logPath := task.CompleteArguments()
+               output,err := command.CombinedOutput()
 					if err != nil {
 						hs.WindowShowFunc()
 						logutil.Error("Failed to start the game",err)
-						logutil.Info("Game output:"+string(output))
+						logutil.Info("Game output: \n"+string(output))
+                  hs.CrashInformerFunc(err,string(output),logPath)
 						return
 					} else {
 						hs.WindowShowFunc()
 						return
 					}
 				case "Exit":
-					task.CompleteArguments().Start()
+               command,_ := task.CompleteArguments()
+               command.Start()
 					hs.AppExitFunc()
 					return
 				case "DoNothing":
-					output,err := task.CompleteArguments().CombinedOutput()
+               command,logPath := task.CompleteArguments()
+					output,err := command.CombinedOutput()
 					if err != nil {
 						logutil.Error("Failed to start the game",err)
 						logutil.Info("Game output:"+string(output))
+                  hs.CrashInformerFunc(err,string(output),logPath)
 						return
 					}
 				}
@@ -160,7 +172,7 @@ func NewHome() *Home {
 					return
 				}
 				if first != downloadutil.CurrentFile {
-					progressText.Text = downloadutil.CurrentFile
+					progressText.Text = downloadutil.CurrentFile+" "+downloadutil.GetJobInfo()
 					progressText.Refresh()
 				}
 			}
@@ -199,10 +211,16 @@ func NewHome() *Home {
 	return hs
 }
 
-func (hs *Home) Update(account auth.AccountProperties, profile profilemanager.ProfileProperties) {
+func (hs *Home) Update(account auth.AccountProperties,profile profilemanager.ProfileProperties) {
+   var lastType string
 	hs.Profile = profile
 	hs.Account = account
-	lastVersion := hs.Profile.LastGameVersion
+	lastVersion := hs.Profile.LastVersion()
+   if !launcher.OfflineMode {
+      lastType = versionmanager.GetVersionType(hs.Profile.LastVersion())
+   } else {
+      lastType = "Local"
+   }
 	accountName := hs.Account.Name
 	if len(accountName) > 6 {
 		accountName = accountName[:5]+"..."
@@ -212,29 +230,29 @@ func (hs *Home) Update(account auth.AccountProperties, profile profilemanager.Pr
 	}
 	if hs.Profile.Name != "" {
 		hs.ProfileCnt.Objects[0].(*fyne.Container).
-			      Objects[1].(*fyne.Container).
-			      Objects[0].(*fyne.Container).
-			      Objects[0].(*fyne.Container).
-			      Objects[0].(*fyne.Container).
-			      Objects[0].(*widget.Label).SetText(hs.Profile.Name)
+			           Objects[1].(*fyne.Container).
+			           Objects[0].(*fyne.Container).
+			           Objects[0].(*fyne.Container).
+                    Objects[0].(*fyne.Container).
+                    Objects[0].(*widget.Label).SetText(hs.Profile.Name)
 	} else {
 		hs.ProfileCnt.Objects[0].(*fyne.Container).
-			      Objects[1].(*fyne.Container).
-			      Objects[0].(*fyne.Container).
-			      Objects[0].(*fyne.Container).
-			      Objects[0].(*fyne.Container).
-			      Objects[0].(*widget.Label).SetText(hs.Profile.Type)
+			           Objects[1].(*fyne.Container).
+			           Objects[0].(*fyne.Container).
+			           Objects[0].(*fyne.Container).
+			           Objects[0].(*fyne.Container).
+			           Objects[0].(*widget.Label).SetText(hs.Profile.Type)
 	}
 
 	hs.ProfileCnt.Objects[0].(*fyne.Container).
-		      Objects[1].(*fyne.Container).
+		           Objects[1].(*fyne.Container).
 	              Objects[0].(*fyne.Container).
 	              Objects[0].(*fyne.Container).
 	              Objects[0].(*fyne.Container).
-	              Objects[1].(*widget.Label).SetText(hs.Profile.LastGameType+" "+hs.Profile.LastGameVersion)
+	              Objects[1].(*widget.Label).SetText(lastType+" "+lastVersion)
 
 	hs.PlayCnt.Objects[0].(*fyne.Container).
-		   Objects[1].(*fyne.Container).
+		        Objects[1].(*fyne.Container).
 	           Objects[0].(*fyne.Container).
 	           Objects[0].(*fyne.Container).
 	           Objects[0].(*fyne.Container).
@@ -245,33 +263,34 @@ func (hs *Home) Update(account auth.AccountProperties, profile profilemanager.Pr
 	              Objects[0].(*fyne.Container).
 	              Objects[0].(*fyne.Container).
 	              Objects[0].(*fyne.Container).
-		      Objects[0].(*widget.Label).SetText(accountName)
+		           Objects[0].(*widget.Label).SetText(accountName)
 }
 
 func (hs *Home) SetSkinIcon(icon image.Image) {
 	if !auth.DefaultSkinIcon {
 		hs.AccountCnt.Objects[0].(*fyne.Container).
-			      Objects[1].(*fyne.Container).
-			      Objects[0].(*fyne.Container).
-			      Objects[0].(*fyne.Container).
-			      Objects[1].(*fyne.Container).
-			      Objects[0].(*fyne.Container).
-			      Objects[0] = canvas.NewImageFromImage(icon)
+                    Objects[1].(*fyne.Container).
+                    Objects[0].(*fyne.Container).
+                    Objects[0].(*fyne.Container).
+                    Objects[1].(*fyne.Container).
+                    Objects[0].(*fyne.Container).
+                    Objects[0] = canvas.NewImageFromImage(icon)
 	} else {
 		hs.AccountCnt.Objects[0].(*fyne.Container).
-			      Objects[1].(*fyne.Container).
-			      Objects[0].(*fyne.Container).
-			      Objects[0].(*fyne.Container).
-			      Objects[1].(*fyne.Container).
-			      Objects[0].(*fyne.Container).
-			      Objects[0].(*canvas.Image).Resource = resources.UnknownSkinIcon
+                    Objects[1].(*fyne.Container).
+                    Objects[0].(*fyne.Container).
+                    Objects[0].(*fyne.Container).
+                    Objects[1].(*fyne.Container).
+                    Objects[0].(*fyne.Container).
+                    Objects[0].(*canvas.Image).Resource = resources.UnknownSkinIcon
 
 		hs.AccountCnt.Objects[0].(*fyne.Container).
-			      Objects[1].(*fyne.Container).
-			      Objects[0].(*fyne.Container).
-			      Objects[0].(*fyne.Container).
-			      Objects[1].(*fyne.Container).
-			      Objects[0].(*fyne.Container).
-			      Objects[0].(*canvas.Image).Refresh()
+                    Objects[1].(*fyne.Container).
+                    Objects[0].(*fyne.Container).
+                    Objects[0].(*fyne.Container).
+                    Objects[1].(*fyne.Container).
+                    Objects[0].(*fyne.Container).
+                    Objects[0].(*canvas.Image).Refresh()
 	}
 }
+

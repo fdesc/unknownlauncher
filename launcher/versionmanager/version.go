@@ -1,14 +1,16 @@
 package versionmanager
 
 import (
-	"path/filepath"
+	"encoding/json"
+	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/tidwall/gjson"
 
+	"fdesc/unknownlauncher/util/downloadutil"
 	"fdesc/unknownlauncher/util/gamepath"
 	"fdesc/unknownlauncher/util/logutil"
-	"fdesc/unknownlauncher/util/downloadutil"
 )
 
 const versionMeta string = `https://launchermeta.mojang.com/mc/game/version_manifest_v2.json`
@@ -16,10 +18,24 @@ var VersionList = make(map[string][]string)
 var LatestRelease string
 var LatestSnapshot string
 
+type classPathList struct {
+   Path string `json:"path,omitempty"`
+   Native string `json:"native,omitempty"`
+}
+
+type argumentLookup struct {
+   JvmType   string `json:"jvmType"`
+   Assets    string `json:"assets"`
+   Id        string `json:"id"`
+   MainClass string `json:"mainClass"`
+   Arguments string `json:"arguments"`
+   Libraries []classPathList `json:"libraries,omitempty"`
+}
+
 func SelectVersion(versionType,version string) (string,error) {
 	var versionUrl string
 	jsonBytes,err := downloadutil.GetData(versionMeta); if err != nil { logutil.Error("Failed to get data for version",err); return "",err }
-	gjson.Get(string(jsonBytes),"versions").ForEach(func(key, value gjson.Result) bool {
+	gjson.Get(string(jsonBytes),"versions").ForEach(func(_, value gjson.Result) bool {
 		if (versionType == value.Get("type").String()) {
 			if (version == value.Get("id").String()) {
 				versionUrl = value.Get("url").String()
@@ -31,38 +47,52 @@ func SelectVersion(versionType,version string) (string,error) {
 	return versionUrl,nil
 }
 
-func GetVersionArguments(versiondata *gjson.Result) error {
-	var data []byte
-	os.MkdirAll(filepath.Join(gamepath.Assetsdir,"args"),os.ModePerm)
-	file,err := os.Create(filepath.Join(gamepath.Assetsdir,"args",versiondata.Get("id").String()+".json"))
+func SaveVersionArguments(versiondata *gjson.Result) error {
+   version := versiondata.Get("id").String()
+   os.MkdirAll(filepath.Join(gamepath.Versionsdir,version),os.ModePerm)
+	file,err := os.Create(filepath.Join(gamepath.Versionsdir,version,version+".json"))
 	if err != nil { logutil.Error("Failed to create arguments to save files",err); return err }
-	if versiondata.Get("minecraftArguments").Exists() {
-		data = []byte(
-			`{`+
-			`"jvmtype":`+versiondata.Get("javaVersion.component").Raw+
-			`,"assets":`+versiondata.Get("assets").Raw+
-			`,"id":`+versiondata.Get("id").Raw+
-			`,"mainclass":`+versiondata.Get("mainClass").Raw+
-			`,"libraries":`+versiondata.Get("libraries").Raw+
-			`,"arguments":`+versiondata.Get("minecraftArguments").Raw+
-			`}`,
-		)
-	} else {
-		data = []byte(
-			`{`+
-			`"jvmtype":`+versiondata.Get("javaVersion.component").Raw+
-			`,"assets":`+versiondata.Get("assets").Raw+
-			`,"id":`+versiondata.Get("id").Raw+
-			`,"mainclass":`+versiondata.Get("mainClass").Raw+
-			`,"libraries":`+versiondata.Get("libraries").Raw+
-			`,"arguments":"default"`+
-			`}`,
-		)
-	}
+   args := &argumentLookup{
+      JvmType: versiondata.Get("javaVersion.component").String(),
+      Assets: versiondata.Get("assets").String(),
+      Id: version,
+      MainClass: versiondata.Get("mainClass").String(),
+   }
+   if versiondata.Get("minecraftArguments").Exists() {
+      args.Arguments = versiondata.Get("minecraftArguments").String()
+   } else {
+      args.Arguments = "default"
+   }
+   data,err := json.Marshal(args)
+   if err != nil { logutil.Error("Failed to marshal arguments data",err); return err }
 	defer file.Close()
 	_,err = file.Write(data)
 	if err != nil { logutil.Error("Failed to write arguments data to file",err); return err }
 	return err
+}
+
+func AppendLibsToArgumentsData(libs []string,natives string,version string) error {
+   args := &argumentLookup{}
+   var pathList = make([]classPathList,len(libs),len(libs))
+   file,err := os.Open(filepath.Join(gamepath.Versionsdir,version,version+".json"))
+   if err != nil { logutil.Error("Failed to open arguments data file",err); return err }
+   data,err := io.ReadAll(file)
+   if err != nil { logutil.Error("Failed to read arguments data file",err); return err }
+   err = json.Unmarshal(data,args)
+   if err != nil { logutil.Error("Failed to unmarshal arguments data",err); return err }
+   defer file.Close()
+   for i := range libs {
+      pathList[i].Path = libs[i]
+   }
+   args.Libraries = pathList
+   pathList[len(pathList)-1].Native = natives
+   jsonData,err := json.Marshal(args)
+   if err != nil { logutil.Error("Failed to marshal arguments data",err); return err }
+   overwrittenFile,err := os.OpenFile(filepath.Join(gamepath.Versionsdir,version,version+".json"),os.O_WRONLY|os.O_CREATE|os.O_TRUNC,os.ModePerm)
+   _,err = overwrittenFile.Write(jsonData)
+   if err != nil { logutil.Error("Failed to write arguments data to file",err); return err }
+   overwrittenFile.Close()
+   return err
 }
 
 func GetVersionList() error {
@@ -93,16 +123,25 @@ func GetVersionList() error {
 
 func searchLocalVersions() error {
 	var names []string
-	dirEntry,err := os.ReadDir(filepath.Join(gamepath.Assetsdir,"args"))
+	dirEntry,err := os.ReadDir(gamepath.Versionsdir)
 	if err != nil {
 		logutil.Error("Failed to read directory contents",err)
 		return err
 	}
 	for _,file := range dirEntry {
-		if !file.IsDir() {
-			filename := file.Name()
-			names = append(names,filename[:len(filename)-5])
-			VersionList["Local"] = names
+		if file.IsDir() {
+         versionDir,err := os.ReadDir(filepath.Join(gamepath.Versionsdir,file.Name()))
+         if err != nil {
+            logutil.Error("Failed to read directory contents",err)
+            return err
+         }
+         for _,f := range versionDir {
+            if !f.IsDir() && filepath.Ext(filepath.Join(gamepath.Versionsdir,file.Name(),f.Name())) == ".json" {
+               filename := file.Name()
+               names = append(names,filename[:len(filename)-5])
+               VersionList["Local"] = names
+            }
+         }
 		}
 	}
 	return err
@@ -112,7 +151,7 @@ func GetVersionType(version string) string {
 	var vertype string
 	jsonBytes,err := downloadutil.GetData(versionMeta)
 	if err != nil { logutil.Error("Failed to get data for version",err); return "" }
-	gjson.Get(string(jsonBytes),"versions").ForEach(func(key, value gjson.Result) bool {
+	gjson.Get(string(jsonBytes),"versions").ForEach(func(_, value gjson.Result) bool {
 		if value.Get("id").String() == version {
 			vertype = value.Get("type").String()
 			return true

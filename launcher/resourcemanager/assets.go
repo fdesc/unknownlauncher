@@ -65,6 +65,7 @@ func Assets(assetsdata *gjson.Result) {
 		legacyAssets(pathSlice,fileNameSlice,assetID)
 	}
 	logutil.Info("Task downloading assets finished")
+   downloadutil.ResetJobCount()
 }
 
 func legacyAssets(pathSlice []string,fileNameSlice []string,assetid string) error {

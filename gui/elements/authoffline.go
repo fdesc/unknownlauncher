@@ -16,26 +16,28 @@ type AuthOffline struct {
 	BtnCancel *widget.Button
 	AuthFunc  func(string) error
 	BaseCnt   *fyne.Container
+
+   messageLabel *canvas.Text
 }
 
 func NewAuthOffline() *AuthOffline {
 	ao := &AuthOffline{}
 	heading := widget.NewLabel("Username")
 	heading.TextStyle = fyne.TextStyle{Bold:true}
-	label := canvas.NewText("Please select an username for the account",theme.ForegroundColor())
+	ao.messageLabel = canvas.NewText("Please select an username for the account",theme.PlaceHolderColor())
 	ao.Entry = widget.NewEntry()
 	ao.BtnOk = widget.NewButton("Ok",func(){
 		if len(ao.Entry.Text) < 2 || len(ao.Entry.Text) > 16 {
-			label.Color = theme.ErrorColor()
-			label.Text = "Username cant have length lower than 2 or higher than 16"
-			label.Refresh()
+			ao.messageLabel.Color = theme.ErrorColor()
+			ao.messageLabel.Text = "Username cant have length lower than 2 or higher than 16"
+			ao.messageLabel.Refresh()
 			return
 		}
 		err := ao.AuthFunc(ao.Entry.Text)
 		if err != nil {
-			label.Color = theme.ErrorColor()
-			label.Text = err.Error()
-			label.Refresh()
+			ao.messageLabel.Color = theme.ErrorColor()
+			ao.messageLabel.Text = err.Error()
+			ao.messageLabel.Refresh()
 		}
 	})
 	ao.BtnOk.Importance = widget.HighImportance
@@ -47,7 +49,7 @@ func NewAuthOffline() *AuthOffline {
 			heading,
 			layout.NewSpacer(),
 		),
-		container.NewVBox(container.NewCenter(label)),
+		container.NewVBox(container.NewCenter(ao.messageLabel)),
 		container.NewPadded(ao.Entry),
 		container.NewHBox(
 			layout.NewSpacer(),
@@ -60,6 +62,9 @@ func NewAuthOffline() *AuthOffline {
 	return ao
 }
 
-func (ao *AuthOffline) ResetEntry() {
+func (ao *AuthOffline) ResetFields() {
 	ao.Entry.SetText("")
+   ao.messageLabel.Text = "Please select an username for the account"
+   ao.messageLabel.Color = theme.PlaceHolderColor()
+   ao.messageLabel.Refresh()
 }

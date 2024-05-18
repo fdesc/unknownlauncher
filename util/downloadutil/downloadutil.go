@@ -1,22 +1,26 @@
 package downloadutil
 
 import (
-	"path/filepath"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"runtime"
+	"strconv"
 	"sync"
 	"time"
-	"os"
-	"io"
 
 	"fdesc/unknownlauncher/util/logutil"
 )
 
 var client = http.Client{Timeout: 120 * time.Second}
 var CurrentFile string
+var jobsDone int
+var jobsPending int
 
 func DownloadSingle(url,path string) error {
-	if _,err := os.Stat(path); err == nil { return err }
+   jobsPending += 1
+	if _,err := os.Stat(path); err == nil { jobsPending -= 1; return err }
 	err := os.MkdirAll(filepath.Dir(path),os.ModePerm); if err != nil { logutil.Error("Failed to create directory",err); return err }
 	out, err := os.Create(path); if err != nil { logutil.Error("Failed to create file",err); return err }
 	defer out.Close()
@@ -32,10 +36,12 @@ func DownloadSingle(url,path string) error {
 	_,err = io.Copy(out, resp.Body)
 	CurrentFile = filepath.Base(path)
 	logutil.Info("Downloaded "+CurrentFile)
+   jobsDone += 1
 	return err
 }
 
 func DownloadMultiple(urlSlice,pathSlice []string) {
+   jobsPending += len(urlSlice)
 	var wg sync.WaitGroup
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	for i := range urlSlice {
@@ -43,7 +49,7 @@ func DownloadMultiple(urlSlice,pathSlice []string) {
 		go func(url,path string,receivedWg *sync.WaitGroup) error {
 			runtime.LockOSThread()
 			defer receivedWg.Done()
-			if _,err := os.Stat(path); err == nil { return err }
+			if _,err := os.Stat(path); err == nil { jobsPending -= 1; return err }
 			err := os.MkdirAll(filepath.Dir(path),os.ModePerm); if err != nil { logutil.Error("Failed to create directory",err); return err }
 			out, err := os.Create(path); if err != nil { logutil.Error("Failed to create file",err); return err }
 			defer out.Close()
@@ -59,11 +65,21 @@ func DownloadMultiple(urlSlice,pathSlice []string) {
 			_,err = io.Copy(out, resp.Body)
 			CurrentFile = filepath.Base(path)
 			logutil.Info("Downloaded "+CurrentFile)
+         jobsDone += 1
 			runtime.UnlockOSThread()
 			return err
 		}(urlSlice[i],pathSlice[i],&wg)
 	}
 	wg.Wait()
+}
+
+func GetJobInfo() string {
+   return "["+strconv.Itoa(jobsDone)+"/"+strconv.Itoa(jobsPending)+"]"
+}
+
+func ResetJobCount() {
+   jobsDone = 0
+   jobsPending = 0
 }
 
 func GetData(url string) ([]byte,error) {

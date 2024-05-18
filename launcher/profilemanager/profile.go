@@ -32,7 +32,6 @@ type ProfileProperties struct {
 	Created string `json:"created"`
 	LastUsed string `json:"lastUsed"`
 	LastGameVersion string `json:"lastVersionId,omitempty"`
-	LastGameType string `json:"lastVersionType,omitempty"`
 	JVMArgs string `json:"javaArgs,omitempty"`
 	Resolution *ProfileResolution `json:"resolution,omitempty"`
 	GameDirectory string `json:"gameDir,omitempty"`
@@ -62,7 +61,7 @@ func ReadProfilesRoot() (ProfilesRoot,error) {
 			lastUsedProfileUUID := GetProfileUUID(&defaultProfiles,"latest-release")
 			var pRoot = &ProfilesRoot{Profiles:defaultProfiles,LastUsedProfile:lastUsedProfileUUID}
 			out,err := json.MarshalIndent(pRoot,"","  ")
-			if err != nil { 
+			if err != nil {
 				logutil.Error("Failed to write json",err)
 				return ProfilesRoot{},err
 			}
@@ -85,7 +84,6 @@ func CreateDefaultProfiles() (map[string]ProfileProperties,error) {
 	releaseProfile := &ProfileProperties{
 		Name:"",
 		Type:"latest-release",
-		LastGameType: "release",
 		LastGameVersion: versionmanager.LatestRelease,
 		Created:time.Now().Format(time.RFC3339),
 		LastUsed:time.Now().Format(time.RFC3339),
@@ -93,7 +91,6 @@ func CreateDefaultProfiles() (map[string]ProfileProperties,error) {
 	snapshotProfile := &ProfileProperties{
 		Name:"",
 		Type:"latest-snapshot",
-		LastGameType: "snapshot",
 		LastGameVersion: versionmanager.LatestSnapshot,
 		Created:time.Now().Format(time.RFC3339),
 		LastUsed:time.Now().Format(time.RFC3339),
@@ -170,10 +167,6 @@ func (pRoot *ProfilesRoot) LastUsed() ProfileProperties {
 
 func (p *ProfileProperties) LastVersion() string {
 	return p.LastGameVersion
-}
-
-func (p *ProfileProperties) LastType() string {
-	return p.LastGameType
 }
 
 func GetProfileUUID(pData *map[string]ProfileProperties,profileInfo string) string {

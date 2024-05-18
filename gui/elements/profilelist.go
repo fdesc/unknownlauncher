@@ -1,6 +1,8 @@
 package elements
 
 import (
+   "slices"
+
 	"fdesc/unknownlauncher/gui/resources"
 	"fdesc/unknownlauncher/launcher/profilemanager"
 
@@ -46,7 +48,6 @@ func NewProfileList() *ProfileList {
 				pl.EditProfileFunc(pl.GetProfileFunc(label.Text))
 			}),
 			widget.NewToolbarAction(theme.ContentCopyIcon(),func(){
-				// log
 				p,_ := pl.GetProfileFunc(label.Text)
 				pl.CopyProfileFunc(p)
 			}),
@@ -102,6 +103,7 @@ func NewProfileList() *ProfileList {
 }
 
 func (pl *ProfileList) Update(data []string) {
+   slices.Sort(data)
 	pl.Data = data
 	pl.BindData.Reload()
 	pl.BaseCnt.Objects[0].(*fyne.Container).Objects[0].Refresh()

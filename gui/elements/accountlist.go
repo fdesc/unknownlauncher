@@ -1,6 +1,8 @@
 package elements
 
 import (
+   "slices"
+
 	"fdesc/unknownlauncher/auth"
 
 	"fyne.io/fyne/v2"
@@ -111,6 +113,7 @@ func NewAccountList() *AccountList {
 }
 
 func (al *AccountList) Update(data []string) {
+   slices.Sort(data)
 	al.Data = data
 	al.BindData.Reload()
 	al.BaseCnt.Objects[0].Refresh()

@@ -7,7 +7,8 @@ import (
 	"os"
 )
 
-var CurrentLogTime = time.Now().Format("2006-01-02")
+var CurrentLogDate = time.Now().Format("2006-01-02")
+var CurrentLogTime = time.Now().Format("15.04.05")
 var CurrentLogPath string
 
 type Loglevel struct {
@@ -25,9 +26,9 @@ func stdoutPrinter(msg string,target *os.File) {
 func Save(msg string) string {
 	var file *os.File
 	var err error
-	fileName := "launcher_"+CurrentLogTime+".log"
+	fileName := "launcher_"+CurrentLogDate+".log"
 	_,patherr := os.Stat(filepath.Join(CurrentLogPath,fileName))
-	if patherr == nil {	
+	if patherr == nil {
 		file,err = os.OpenFile(filepath.Join(CurrentLogPath,fileName),os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 		if err != nil { Error("Failed to open file",err); return "" }
 		defer file.Close()
@@ -42,7 +43,7 @@ func Save(msg string) string {
 				Error("Failed to create directories for log path",err)
 				return ""
 			}
-			file,err = os.Create(filepath.Join(CurrentLogPath,fileName))
+			file,_ = os.Create(filepath.Join(CurrentLogPath,fileName))
 		}
 		defer file.Close()
 		_,err = file.WriteString(msg+"\n")

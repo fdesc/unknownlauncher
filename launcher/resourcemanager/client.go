@@ -30,6 +30,7 @@ func Client(versiondata *gjson.Result,version string) error {
 		}
 	}
 	logutil.Info("Task client JAR finished for version "+version)
+   downloadutil.ResetJobCount()
 	return err
 }
 
@@ -38,6 +39,7 @@ func Log4JConfig(versiondata *gjson.Result) string {
 		url := versiondata.Get("logging.client.file.url").String()
 		id := versiondata.Get("logging.client.file.id").String()
 		downloadutil.DownloadSingle(url,filepath.Join(gamepath.Assetsdir,"log_configs",id))
+      downloadutil.ResetJobCount()
 		return filepath.Join(gamepath.Assetsdir,"log_configs",id)
 	} else {
 		return ""

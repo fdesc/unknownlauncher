@@ -6,9 +6,12 @@ import (
 	"strconv"
 
 	"fdesc/unknownlauncher/gui/resources"
+	"fdesc/unknownlauncher/launcher"
 	"fdesc/unknownlauncher/launcher/profilemanager"
 	"fdesc/unknownlauncher/launcher/versionmanager"
 	"fdesc/unknownlauncher/util/logutil"
+
+	"github.com/sqweek/dialog"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -50,25 +53,48 @@ func NewProfileEdit() *ProfileEdit {
 	separatorLine := canvas.NewLine(theme.OverlayBackgroundColor())
 	separatorLine.StrokeWidth = 1
 	gameDirLabel := widget.NewLabel("Game directory")
-	gameDirButton := widget.NewButton("Browse",func(){})
+	gameDirButton := widget.NewButton("Browse",func(){
+      pe.GameDirEntry.Disable()
+      filename,err := dialog.Directory().Title("Select game directory").Browse()
+      if err != nil && err != dialog.ErrCancelled {
+         logutil.Error("Failed to load directory",err)
+         pe.GameDirEntry.Enable()
+         return
+      }
+      pe.GameDirEntry.SetText(filename)
+      pe.GameDirEntry.Enable()
+   })
 	resolutionLabel := widget.NewLabel("Resolution")
 	javaDirLabel := widget.NewLabel("Java executable ")
-	javaDirButton := widget.NewButton("Browse",func(){})
+	javaDirButton := widget.NewButton("Browse",func(){
+      pe.JavaExecEntry.Disable()
+      filename,err := dialog.File().Load()
+      if err != nil && err != dialog.ErrCancelled {
+         logutil.Error("Failed to load file",err)
+         pe.JavaExecEntry.Enable()
+         return
+      }
+      pe.JavaExecEntry.SetText(filename)
+      pe.JavaExecEntry.Enable()
+   })
 	javaArgsLabel := widget.NewLabel("JVM arguments")
 	pe.NameEntry = widget.NewEntry()
 	for k := range versionmanager.VersionList {
 		pe.TypeSlice = append(pe.TypeSlice, k)
 	}
-	pe.TypeSlice = versionmanager.SortVersionTypes(pe.TypeSlice)
+   if len(pe.TypeSlice) > 2 {
+      pe.TypeSlice = versionmanager.SortVersionTypes(pe.TypeSlice)
+   }
 	pe.VersionTSelect = widget.NewSelect(pe.TypeSlice,func(s string){
 		pe.VersionSelect.Options = versionmanager.VersionList[s]
 		pe.VersionSelect.Selected = versionmanager.VersionList[s][0]
 		pe.VersionSelect.Refresh()
 	})
 	pe.VersionTSelect.Selected = pe.TypeSlice[0]
+   pe.VersionTSelect.Refresh()
 	pe.VersionSelect = widget.NewSelect(versionmanager.VersionList[pe.VersionTSelect.Selected],func(string){})
-	if pe.Profile.LastType() != "" {
-		pe.VersionTSelect.Selected = pe.Profile.LastType()
+	if !launcher.OfflineMode {
+		pe.VersionTSelect.Selected = versionmanager.GetVersionType(pe.Profile.LastVersion())
 	}
 	pe.GameDirEntry = widget.NewEntry()
 	// user should not be able to use the separate installation feature if the game directory entry is empty
@@ -154,7 +180,6 @@ func NewProfileEdit() *ProfileEdit {
 		}
 		pe.Profile.Name = pe.NameEntry.Text
 		pe.Profile.LastGameVersion = pe.VersionSelect.Selected
-		pe.Profile.LastGameType = pe.VersionTSelect.Selected
 		if len(pe.JavaArgsEntry.Text) >= 5 || pe.JavaArgsEntry.Text == "" {
 			pe.Profile.JVMArgs = pe.JavaArgsEntry.Text
 		}
@@ -224,8 +249,14 @@ func (pe *ProfileEdit) Update(profile *profilemanager.ProfileProperties,uuid str
 		pe.NameEntry.SetText(pe.Profile.Name)
 	}
 	if pe.Profile.LastVersion() != "" {
-		pe.VersionTSelect.Selected = pe.Profile.LastType()
-		pe.VersionSelect.Selected = pe.Profile.LastVersion()
+      if !launcher.OfflineMode {
+         pe.VersionTSelect.Selected = versionmanager.GetVersionType(pe.Profile.LastVersion())
+         pe.VersionSelect.Options = versionmanager.VersionList[versionmanager.GetVersionType(pe.Profile.LastVersion())]
+         pe.VersionSelect.Selected = pe.Profile.LastVersion()
+      } else {
+         pe.VersionTSelect.Selected = pe.TypeSlice[0]
+         pe.VersionSelect.Selected = pe.Profile.LastVersion()
+      }
 	} else {
 		pe.VersionTSelect.Selected = pe.TypeSlice[0]
 		pe.VersionSelect.Selected = versionmanager.VersionList[pe.VersionTSelect.Selected][0]

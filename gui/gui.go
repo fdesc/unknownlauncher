@@ -1,9 +1,10 @@
 package gui
 
 import (
-	"os"
 	"strconv"
+   "image/color"
 	"time"
+	"os"
 
 	"fdesc/unknownlauncher/auth"
 	"fdesc/unknownlauncher/gui/elements"
@@ -14,12 +15,14 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/widget"
 )
 
-var lProfiles  = &profilemanager.ProfilesRoot{}
-var lAccounts  = &auth.AccountsRoot{}
-var lSettings  = &launcher.LauncherSettings{}
+var lProfiles = &profilemanager.ProfilesRoot{}
+var lAccounts = &auth.AccountsRoot{}
+var lSettings = &launcher.LauncherSettings{}
 
 type gui struct {
 	App      fyne.App
@@ -42,21 +45,33 @@ func SetSettings(s *launcher.LauncherSettings) {
 
 func NewGui() *gui {
 	gApp := app.New()
-	return &gui{
+   gui := &gui{
 		App: gApp,
 		Window: gApp.NewWindow(""),
 		MainCnt: container.NewStack(),
 		Elements: elements.New(),
 	}
+   gui.ReloadSettings()
+   return gui
 }
 
 func (g *gui) Start(title string) {
-	g.SetContainer(g.Elements.Auth.BaseCnt)
 	g.Window.SetTitle(title)
-	g.ReloadSettings()
+   g.Window.SetMaster()
 	g.Window.Resize(fyne.Size{Height: 480, Width: 680})
 	g.Window.SetFixedSize(true)
 	g.Window.SetContent(g.MainCnt)
+   g.Elements.CrashInformer.InfoWindow = g.App.NewWindow("Logs")
+   g.Elements.CrashInformer.InfoWindow.Hide()
+   if lAccounts.LastUsed().Name != "" {
+      skinData,_ := auth.GetSkinData(auth.InitClient(),lAccounts.LastUsed().AccountUUID)
+      skinUrl := auth.GetSkinUrl(skinData)
+      g.Elements.HomeScreen.Update(lAccounts.LastUsed(),lProfiles.LastUsed())
+      g.Elements.HomeScreen.SetSkinIcon(auth.CropSkinImage(skinUrl))
+      g.SetContainer(g.Elements.HomeScreen.BaseCnt)
+   } else {
+      g.SetContainer(g.Elements.Auth.BaseCnt)
+   }
 	g.Window.ShowAndRun()
 }
 
@@ -84,6 +99,28 @@ func (g *gui) ReloadSettings() {
 	g.Elements.Settings.Update(lSettings.LauncherTheme,lSettings.LaunchRule,lSettings.DisableValidation)
 }
 
+func InitialError(message string,err error) {
+   smallApp := app.New()
+   window := smallApp.NewWindow("Application crashed")
+   window.Resize(fyne.Size{Height:480,Width:680})
+   messageRect := canvas.NewRectangle(color.RGBA{R:25,G:25,B:25,A:200})
+   messageLabel := widget.NewLabel("Application failed to start. To troubleshoot check structure of json files in game directory.")
+   textField := widget.NewTextGridFromString(message+"\n"+err.Error())
+   quitButton := widget.NewButton("Quit",func() { window.Close(); smallApp.Quit() })
+   window.SetContent(
+      container.NewBorder(
+         messageLabel,
+         quitButton,
+         nil,
+         nil,
+         container.NewScroll(
+            container.NewStack(messageRect,textField),
+         ),
+      ),
+   )
+   window.ShowAndRun()
+}
+
 func (g *gui) SetProperties() {
 	g.bindAuth()
 	g.bindAuthOffline()
@@ -106,6 +143,9 @@ func (g *gui) bindHomeScreen() {
 	g.Elements.HomeScreen.ListAccountsFunc = func() { g.SetContainer(g.Elements.AccountList.BaseCnt) }
 	g.Elements.HomeScreen.BtnSettings.OnTapped = func() { g.SetContainer(g.Elements.Settings.BaseCnt) }
 	g.Elements.HomeScreen.BtnProfile.OnTapped = func() { g.SetContainer(g.Elements.ProfileList.BaseCnt) }
+   g.Elements.HomeScreen.CrashInformerFunc = func(err error, output string, logPath string) {
+      g.Elements.CrashInformer.Start(err,output,logPath)
+   }
 	g.Elements.HomeScreen.PopUpCanvas = g.Window.Canvas()
 }
 
@@ -181,6 +221,8 @@ func (g *gui) bindProfileList() {
 	g.Elements.ProfileList.SelectProfileFunc = func(name string) {
 		uuid := g.Elements.ProfileList.LookupMap[name]
 		logutil.Info("Selecting profile with UUID: "+uuid)
+      selectedProfile := lProfiles.GetProfile(uuid)
+      selectedProfile.LastUsed = time.Now().Format(time.RFC3339)
 		lProfiles.LastUsedProfile = uuid
 		lProfiles.SaveToFile()
 		g.Elements.ProfileList.LookupMapRefresh()
@@ -189,7 +231,7 @@ func (g *gui) bindProfileList() {
 	}
 	g.Elements.ProfileList.CreateProfileFunc = func() (profilemanager.ProfileProperties,string) {
 		p := profilemanager.ProfileProperties{}
-		p.Name = "Profile "+strconv.Itoa(len(lProfiles.Profiles)+1)
+		p.Name = "profile "+strconv.Itoa(len(lProfiles.Profiles)+1)
 		p.Type = "custom-profile"
 		p.Created = time.Now().Format(time.RFC3339)
 		p.LastUsed = time.Now().Format(time.RFC3339)
@@ -235,26 +277,27 @@ func(g *gui) bindAuthOffline() {
 		g.Elements.HomeScreen.SetSkinIcon(skinimg)
 		g.Elements.HomeScreen.Update(lAccounts.LastUsed(),lProfiles.LastUsed())
 		g.SetContainer(g.Elements.HomeScreen.BaseCnt)
-		g.Elements.AuthOffline.ResetEntry()
+		g.Elements.AuthOffline.ResetFields()
 		return nil
 	}
 	g.Elements.AuthOffline.BtnCancel.OnTapped  = func() {
 		g.SetContainer(g.Elements.Auth.BaseCnt)
-		g.Elements.AuthOffline.ResetEntry()
+		g.Elements.AuthOffline.ResetFields()
 	}
 }
 
 func (g *gui) bindAccountList() {
 	g.Elements.AccountList.SelectAccountFunc = func(uuid string) {
-		logutil.Info("Selecting account with the UUID: "+uuid)
+		logutil.Info("Selecting account with UUID: "+uuid)
 		selectedAccount := lAccounts.GetAccount(uuid)
 		lAccounts.LastUsedAccount = uuid
 		lAccounts.SaveToFile()
+      lastProfile := lProfiles.LastUsed()
 		if selectedAccount.AccountType == "offline" {
 			skinData,_ := auth.GetSkinData(auth.InitClient(),selectedAccount.AccountUUID)
 			skinUrl := auth.GetSkinUrl(skinData)
 			g.Elements.HomeScreen.SetSkinIcon(auth.CropSkinImage(skinUrl))
-			g.Elements.HomeScreen.Update(selectedAccount,lProfiles.Profiles[lProfiles.LastUsedProfile])
+			g.Elements.HomeScreen.Update(selectedAccount,lastProfile)
 			g.SetContainer(g.Elements.HomeScreen.BaseCnt)
 		}
 	}
@@ -268,7 +311,7 @@ func (g *gui) bindAccountList() {
 	}
 	g.Elements.AccountList.Update(lAccounts.GetAccountNames())
 	g.Elements.AccountList.PopUpCanvas = g.Window.Canvas()
-	g.Elements.AccountList.BtnNew.OnTapped = func() { g.SetContainer(g.Elements.AuthOffline.BaseCnt) }
+	g.Elements.AccountList.BtnNew.OnTapped = func() { g.SetContainer(g.Elements.Auth.BaseCnt) }
 }
 
 func (g *gui) bindAuth() {

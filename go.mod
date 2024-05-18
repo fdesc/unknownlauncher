@@ -5,7 +5,7 @@ go 1.21.1
 require (
 	fyne.io/fyne/v2 v2.4.4
 	github.com/google/uuid v1.6.0
-	github.com/sqweek/dialog v0.0.0-20220809060634-e981b270ebbf
+	github.com/sqweek/dialog v0.0.0-20240226140203-065105509627
 	github.com/tidwall/gjson v1.17.1
 	github.com/ulikunitz/xz v0.5.11
 	golang.org/x/image v0.15.0
@@ -13,7 +13,7 @@ require (
 
 require (
 	fyne.io/systray v1.10.1-0.20231115130155-104f5ef7839e // indirect
-	github.com/TheTitanrain/w32 v0.0.0-20200114052255-2654d97dbd3d // indirect
+	github.com/TheTitanrain/w32 v0.0.0-20180517000239-4f5cfb03fabf // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fredbi/uri v1.1.0 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect

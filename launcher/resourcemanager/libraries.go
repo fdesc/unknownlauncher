@@ -1,19 +1,20 @@
 package resourcemanager
 
 import (
-	"path/filepath"
 	"archive/zip"
+	"io"
+	"os"
+	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
-	"regexp"
 	"time"
-	"os"
-	"io"
 
-	"github.com/tidwall/gjson"
 	"fdesc/unknownlauncher/util/downloadutil"
 	"fdesc/unknownlauncher/util/gamepath"
 	"fdesc/unknownlauncher/util/logutil"
+
+	"github.com/tidwall/gjson"
 )
 
 var (
@@ -22,7 +23,7 @@ var (
 	hashSlice []string
 )
 
-func libraryRules(versiondata *gjson.Result) {  
+func libraryRules(versiondata *gjson.Result) {
 	logutil.Info("Acquiring OS dependent library rules")
 	versiondata.Get("libraries").ForEach(func(_,value gjson.Result) bool {
 		if (value.Get("rules.1").Exists() && !value.Get("natives").Exists()) {
@@ -44,7 +45,7 @@ func libraryRules(versiondata *gjson.Result) {
 						hashSlice = append(hashSlice, value.Get("downloads.artifact.sha1").String())
 					}
 				}
-			} 
+			}
 		return true
 	})
 }
@@ -93,7 +94,7 @@ func nativeLibraries(versiondata *gjson.Result) []string {
 	return pathSlice // slice of natives path
 }
 
-func unpackNatives(version string,nativesSlice []string) (string) {
+func unpackNatives(version string,nativesSlice []string) string {
 	logutil.Info("Unpacking natives")
 	target := filepath.Join(gamepath.Versionsdir,version,version+"-natives-"+strconv.Itoa(time.Now().Nanosecond()))
 	for i := range nativesSlice {
@@ -101,7 +102,7 @@ func unpackNatives(version string,nativesSlice []string) (string) {
 		if err != nil { logutil.Error("Failed to read JAR file",err) }
 		defer jarFile.Close()
 		for _,file := range jarFile.File {
-			openedFiles, err := file.Open(); if err != nil { logutil.Error("Failed to open file",err) }
+			openedFiles, err := file.Open(); if err != nil { logutil.Error("Failed to open file",err); return "" }
 			defer openedFiles.Close()
 			os.MkdirAll(filepath.Dir(filepath.Join(target,file.Name)),os.ModePerm)
 			if file.FileInfo().IsDir() {
@@ -163,8 +164,11 @@ func Libraries(version string, versiondata *gjson.Result) ([]string,string) {
 	downloadutil.DownloadMultiple(urlSlice,pathSlice)
 	for i := range pathSlice {
 		if !ValidateChecksum(pathSlice[i],hashSlice[i]) {
-			os.Remove(pathSlice[i])
-			downloadutil.DownloadSingle(urlSlice[i],pathSlice[i])
+         if _,err := downloadutil.GetData("https://libraries.minecraft.net/"); err != nil {
+            continue
+         }
+         os.Remove(pathSlice[i])
+         downloadutil.DownloadSingle(urlSlice[i],pathSlice[i])
 		} else {
 			continue
 		}
@@ -174,6 +178,7 @@ func Libraries(version string, versiondata *gjson.Result) ([]string,string) {
 		nativesPath = unpackNatives(version,natives)
 	}
 	logutil.Info("Finished downloading libraries")
+   downloadutil.ResetJobCount()
 	return pathSlice,nativesPath
 }
 

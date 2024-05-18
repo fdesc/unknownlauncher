@@ -14,40 +14,40 @@ type DefaultLightTheme struct{}
 
 func (DefaultDarkTheme) Color(c fyne.ThemeColorName, v fyne.ThemeVariant) color.Color {
 	switch c {
-	case theme.ColorNameBackground:
-		return color.RGBA{R: 18, G: 18, B: 18, A: 255}
-	case theme.ColorNameOverlayBackground:
-		return color.RGBA{R :22, G: 22, B: 22, A:255}
-	case theme.ColorNameMenuBackground:
-		return color.RGBA{R: 22, G: 22, B: 22, A: 255}
-	case theme.ColorNameButton:
-		return color.RGBA{R: 32, G: 32, B: 32, A: 255}
-	case theme.ColorNameDisabledButton:
-		return color.RGBA{R: 43, G: 43, B: 43, A: 140}
-	case theme.ColorNameDisabled:
-		return color.RGBA{R: 83, G: 83, B: 83, A: 140}
-	case theme.ColorNameError:
-		return color.RGBA{R: 244, G: 67, B: 54, A: 255}
-	case theme.ColorNameFocus:
-		return color.RGBA{R: 30, G: 150, B: 160, A: 230}
-	case theme.ColorNameForeground:
-		return color.RGBA{R: 224, G: 226, B: 224, A: 255}
-	case theme.ColorNameHover:
-		return color.RGBA{R: 10, G: 10, B: 10, A: 1}
-	case theme.ColorNameInputBackground:
-		return color.RGBA{R: 54, G: 54, B: 54, A: 100}
-	case theme.ColorNamePlaceHolder:
-		return color.RGBA{R: 244, G: 244, B: 244, A: 255}
-	case theme.ColorNamePressed:
-		return color.RGBA{R: 18, G: 18, B: 9, A: 15}
-	case theme.ColorNamePrimary:
-		return color.RGBA{R: 68, G: 148, B: 242, A: 255}
-	case theme.ColorNameScrollBar:
-		return color.RGBA{R: 255, G: 255, B: 255, A: 243}
-	case theme.ColorNameShadow:
-		return color.NRGBA{R: 0, G: 0, B: 0, A: 66}
-	default:
-		return theme.DefaultTheme().Color(c, v)
+      case theme.ColorNameBackground:
+         return color.RGBA{R: 18, G: 18, B: 18, A: 255}
+      case theme.ColorNameOverlayBackground:
+         return color.RGBA{R :22, G: 22, B: 22, A:255}
+      case theme.ColorNameMenuBackground:
+         return color.RGBA{R: 22, G: 22, B: 22, A: 255}
+      case theme.ColorNameButton:
+         return color.RGBA{R: 32, G: 32, B: 32, A: 255}
+      case theme.ColorNameDisabledButton:
+         return color.RGBA{R: 25, G: 25, B: 25, A: 255}
+      case theme.ColorNameDisabled:
+         return color.RGBA{R: 83, G: 83, B: 83, A: 255}
+      case theme.ColorNameError:
+         return color.RGBA{R: 244, G: 67, B: 54, A: 255}
+      case theme.ColorNameFocus:
+         return color.RGBA{R: 30, G: 150, B: 160, A: 255}
+      case theme.ColorNameForeground:
+         return color.RGBA{R: 224, G: 226, B: 224, A: 255}
+      case theme.ColorNameHover:
+         return color.RGBA{R: 40, G: 40, B: 40, A: 255}
+      case theme.ColorNameInputBackground:
+         return color.RGBA{R: 54, G: 54, B: 54, A: 255}
+      case theme.ColorNamePlaceHolder:
+         return color.RGBA{R: 250, G: 250, B: 250, A: 255}
+      case theme.ColorNamePressed:
+         return color.RGBA{R: 15, G: 15, B: 15, A: 255}
+      case theme.ColorNamePrimary:
+         return color.RGBA{R: 68, G: 148, B: 242, A: 255}
+      case theme.ColorNameScrollBar:
+         return color.RGBA{R: 255, G: 255, B: 255, A: 255}
+      case theme.ColorNameShadow:
+         return color.NRGBA{R: 0, G: 0, B: 0, A: 50}
+      default:
+         return theme.DefaultTheme().Color(c, v)
 	}
 }
 
@@ -73,64 +73,64 @@ func (DefaultDarkTheme) Icon(n fyne.ThemeIconName) fyne.Resource {
 
 func (DefaultDarkTheme) Size(s fyne.ThemeSizeName) float32 {
 	switch s {
-	case theme.SizeNameCaptionText:
-		return 14.5
-	case theme.SizeNameInlineIcon:
-		return 18
-	case theme.SizeNamePadding:
-		return 4
-	case theme.SizeNameScrollBar:
-		return 8
-	case theme.SizeNameScrollBarSmall:
-		return 4
-	case theme.SizeNameSeparatorThickness:
-		return 1
-	case theme.SizeNameText:
-		return 14.5
-	case theme.SizeNameInputBorder:
-		return 1.5
-	default:
-		return theme.DefaultTheme().Size(s)
+      case theme.SizeNameCaptionText:
+         return 14.5
+      case theme.SizeNameInlineIcon:
+         return 18
+      case theme.SizeNamePadding:
+         return 4
+      case theme.SizeNameScrollBar:
+         return 8
+      case theme.SizeNameScrollBarSmall:
+         return 3
+      case theme.SizeNameSeparatorThickness:
+         return 1
+      case theme.SizeNameText:
+         return 14.5
+      case theme.SizeNameInputBorder:
+         return 1.5
+      default:
+         return theme.DefaultTheme().Size(s)
 	}
 }
 
 func (DefaultLightTheme) Color(c fyne.ThemeColorName, v fyne.ThemeVariant) color.Color {
-        switch c {
+   switch c {
         case theme.ColorNameBackground:
-                return color.RGBA{R: 235, G: 235, B: 235, A: 255}
-	case theme.ColorNameOverlayBackground:
-		return color.RGBA{R :220, G: 220, B: 220, A: 255}
-	case theme.ColorNameMenuBackground:
-		return color.RGBA{R :220, G: 220, B: 220, A: 255}
+                return color.NRGBA{R: 235, G: 235, B: 235, A: 255}
+        case theme.ColorNameOverlayBackground:
+                return color.RGBA{R :220, G: 220, B: 220, A: 255}
+        case theme.ColorNameMenuBackground:
+                return color.RGBA{R :220, G: 220, B: 220, A: 255}
         case theme.ColorNameButton:
                 return color.RGBA{R: 191, G: 191, B: 191, A: 255}
         case theme.ColorNameDisabledButton:
                 return color.RGBA{R: 160, G: 160, B: 160, A: 255}
         case theme.ColorNameDisabled:
-                return color.RGBA{R: 0, G: 0, B: 0, A: 65}
+                return color.RGBA{R: 0, G: 0, B: 0, A: 255}
         case theme.ColorNameError:
                 return color.RGBA{R: 244, G: 67, B: 54, A: 255}
         case theme.ColorNameFocus:
-                return color.RGBA{R: 30, G: 150, B: 160, A: 230}
+                return color.RGBA{R: 30, G: 150, B: 160, A: 255}
         case theme.ColorNameForeground:
-                return color.RGBA{R: 18, G: 18, B: 18, A: 255}
+                return color.NRGBA{R: 18, G: 18, B: 18, A: 255}
         case theme.ColorNameHover:
-                return color.RGBA{R: 0, G: 0, B: 0, A: 47}
+                return color.RGBA{R: 185, G: 185, B: 185, A: 255}
         case theme.ColorNameInputBackground:
-                return color.RGBA{R: 0, G: 0, B: 0, A: 32}
+                return color.RGBA{R: 200, G: 200, B: 200, A: 255}
         case theme.ColorNamePlaceHolder:
-                return color.RGBA{R: 0, G: 0, B: 0, A: 143}
+                return color.RGBA{R: 18, G: 18, B: 18, A: 255}
         case theme.ColorNamePressed:
-                return color.RGBA{R: 0, G: 0, B: 9, A: 15}
+                return color.RGBA{R: 175, G: 175, B: 175, A: 255}
         case theme.ColorNamePrimary:
                 return color.RGBA{R: 68, G: 148, B: 242, A: 255}
         case theme.ColorNameScrollBar:
-                return color.RGBA{R: 0, G: 0, B: 0, A: 100}
+                return color.RGBA{R: 150, G: 150, B: 150, A: 255}
         case theme.ColorNameShadow:
-                return color.RGBA{R: 0, G: 0, B: 0, A: 32}
+                return color.RGBA{R: 0, G: 0, B: 0, A: 50}
         default:
                 return theme.DefaultTheme().Color(c, v)
-        }
+   }
 }
 
 func (DefaultLightTheme) Font(s fyne.TextStyle) fyne.Resource {
@@ -150,28 +150,28 @@ func (DefaultLightTheme) Font(s fyne.TextStyle) fyne.Resource {
 }
 
 func (DefaultLightTheme) Icon(n fyne.ThemeIconName) fyne.Resource {
-        return theme.DefaultTheme().Icon(n)
+   return theme.DefaultTheme().Icon(n)
 }
 
 func (DefaultLightTheme) Size(s fyne.ThemeSizeName) float32 {
 	switch s {
-	case theme.SizeNameCaptionText:
-		return 15
-	case theme.SizeNameInlineIcon:
-		return 18
-	case theme.SizeNamePadding:
-		return 4
-	case theme.SizeNameScrollBar:
-		return 12
-	case theme.SizeNameScrollBarSmall:
-		return 2
-	case theme.SizeNameSeparatorThickness:
-		return 1
-	case theme.SizeNameText:
-		return 15
-	case theme.SizeNameInputBorder:
-		return 1.5
-	default:
-		return theme.DefaultTheme().Size(s)
+      case theme.SizeNameCaptionText:
+         return 14.5
+      case theme.SizeNameInlineIcon:
+         return 18
+      case theme.SizeNamePadding:
+         return 4
+      case theme.SizeNameScrollBar:
+         return 8
+      case theme.SizeNameScrollBarSmall:
+         return 3
+      case theme.SizeNameSeparatorThickness:
+         return 1
+      case theme.SizeNameText:
+         return 14.5
+      case theme.SizeNameInputBorder:
+         return 1.5
+      default:
+         return theme.DefaultTheme().Size(s)
 	}
 }

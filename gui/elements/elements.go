@@ -1,13 +1,14 @@
 package elements
 
 type GuiElements struct {
-	AuthOffline *AuthOffline
-	Auth        *Auth
-	AccountList *AccountList
-	Settings    *Settings
-	ProfileList *ProfileList
-	ProfileEdit *ProfileEdit
-	HomeScreen  *Home
+	AuthOffline   *AuthOffline
+	Auth          *Auth
+	AccountList   *AccountList
+	Settings      *Settings
+	ProfileList   *ProfileList
+	ProfileEdit   *ProfileEdit
+	HomeScreen    *Home
+   CrashInformer *CrashInformer
 }
 
 func New() *GuiElements {
@@ -19,5 +20,6 @@ func New() *GuiElements {
 		ProfileList: NewProfileList(),
 		ProfileEdit: NewProfileEdit(),
 		HomeScreen: NewHome(),
+      CrashInformer: NewCrashInformer(),
 	}
 }
