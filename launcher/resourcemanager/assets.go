@@ -26,7 +26,9 @@ func ParseAssets() (gjson.Result,error) {
    return assetsdata.Get("objects"),err
 }
 
-func Assets(assetsdata *gjson.Result) { 
+func Assets(assetsdata *gjson.Result) {
+   logutil.Info("Downloading assets")
+   var hashPathMap = map[string]string{}
    var hashSlice []string
    var urlSlice []string
    var pathSlice []string
@@ -36,23 +38,24 @@ func Assets(assetsdata *gjson.Result) {
       if assetID == "legacy" || assetID == "pre-1.6" {
          fileNameSlice = append(fileNameSlice, key.String())
       }
-      hashSlice = append(hashSlice,value.Get("hash").String())
+      hashPathMap[value.Get("hash").String()] = filepath.Join(value.Get("hash").String()[:2],value.Get("hash").String())
       return true
    })
-   for i := range hashSlice {
-      urlSlice = append(urlSlice, "https://resources.download.minecraft.net/"+hashSlice[i][:2]+"/"+hashSlice[i])
-      pathSlice = append(pathSlice, filepath.Join(objectsDir,hashSlice[i][:2],hashSlice[i]))
+   for k,v := range hashPathMap {
+      hashSlice = append(hashSlice, k)
+      pathSlice = append(pathSlice, filepath.Join(objectsDir,v))
+      urlSlice = append(urlSlice, "https://resources.download.minecraft.net/"+v)
    }
-   logutil.Info("Downloading assets")
    downloadutil.DownloadMultiple(urlSlice,pathSlice)
    for i := range pathSlice {
       if !ValidateChecksum(pathSlice[i],hashSlice[i]) {
-         for c := 0; c <= 3; c++ {
+         for c := 0; c < 3; c++ {
             os.Remove(pathSlice[i])
             downloadutil.DownloadSingle(urlSlice[i],pathSlice[i])
             if ValidateChecksum(pathSlice[i],hashSlice[i]) {
                break
-            } else if c == 3 {
+            }
+            if c == 2 {
                logutil.Warn("Failed to validate checksum after 3 tries. Skipping this file")
                break
             }
