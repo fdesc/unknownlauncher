@@ -174,6 +174,11 @@ func GetVersionType(version string) string {
 		}
 		return true
 	})
+   if vertype == "" {
+      if strings.Contains(version,"OptiFine") {
+         vertype = "OptiFine"
+      }
+   }
 	return vertype
 }
 

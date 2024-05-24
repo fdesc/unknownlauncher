@@ -171,11 +171,10 @@ func cleanDuplicateNatives(version string) {
    if OfflineMode { return; }
    logutil.Info("Cleaning duplicate natives")
    counter := 0
-   nativesRegex := regexp.MustCompile(`.*-natives-.*`)
    versionDirs,err := os.ReadDir(filepath.Join(gamepath.Versionsdir,version))
    if err != nil { return }
    for _,file := range versionDirs {
-      if file.IsDir() && nativesRegex.MatchString(file.Name()) {
+      if file.IsDir() && strings.Contains(file.Name(),"-natives-") {
          counter++
          if counter >= 1 {
             os.RemoveAll(filepath.Join(gamepath.Versionsdir,version,file.Name()))
