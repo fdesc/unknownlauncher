@@ -153,7 +153,7 @@ func searchLocalVersions(offlineMode bool) error {
                      }
                   }
                   if optifine != nil {
-                     VersionList["OptiFine"] = optifine 
+                     VersionList["OptiFine"] = optifine
                   }
                }
             }
@@ -184,8 +184,14 @@ func SortVersionTypes(slice []string) []string {
 		2:"old_beta",
 		3:"old_alpha",
 	}
-   for i := 0; i < len(order); i++ {
-		slice[i] = order[i]
+   for i := range slice {
+      switch slice[i] {
+      default:
+         slice[i] = order[i]
+         break
+      case "OptiFine":
+         continue
+      }
 	}
 	return slice
 }
