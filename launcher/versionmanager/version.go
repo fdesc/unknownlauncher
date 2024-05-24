@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/tidwall/gjson"
 
@@ -98,7 +99,8 @@ func AppendLibsToArgumentsData(libs []string,natives string,version string) erro
 func GetVersionList() error {
 	logutil.Info("Acquiring version list")
 	jsonBytes,err := downloadutil.GetData(versionMeta); if err != nil {
-		searchLocalVersions()
+      searchErr := searchLocalVersions(true)
+      if searchErr != nil { logutil.Error("Failed to search local versions",searchErr); return searchErr }
 		logutil.Error("Failed to get data for version",err)
 		return err
 	}
@@ -118,10 +120,12 @@ func GetVersionList() error {
 		}
 		return true
 	})
+   err = searchLocalVersions(false)
+   if err != nil { logutil.Error("Failed to search local versions",err); return err }
 	return err
 }
 
-func searchLocalVersions() error {
+func searchLocalVersions(offlineMode bool) error {
 	var names []string
 	dirEntry,err := os.ReadDir(gamepath.Versionsdir)
 	if err != nil {
@@ -139,7 +143,19 @@ func searchLocalVersions() error {
             if !f.IsDir() && filepath.Ext(filepath.Join(gamepath.Versionsdir,file.Name(),f.Name())) == ".json" {
                filename := file.Name()
                names = append(names,filename[:len(filename)-5])
-               VersionList["Local"] = names
+               if offlineMode {
+                  VersionList["Local"] = names
+               } else {
+                  var optifine []string
+                  for _,e := range names {
+                     if strings.Contains(e,"OptiFine") {
+                        optifine = append(optifine, e)
+                     }
+                  }
+                  if optifine != nil {
+                     VersionList["OptiFine"] = optifine 
+                  }
+               }
             }
          }
 		}
@@ -168,7 +184,7 @@ func SortVersionTypes(slice []string) []string {
 		2:"old_beta",
 		3:"old_alpha",
 	}
-	for i := range slice {
+   for i := 0; i < len(order); i++ {
 		slice[i] = order[i]
 	}
 	return slice
